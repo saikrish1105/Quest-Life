@@ -3,7 +3,7 @@ import AnimatedMeshBackground from '../components/AnimatedMeshBackground'
 import GlassCard from '../components/GlassCard'
 import { getFixedRewards, getAISpecials, redeemReward, saveAISpecials, isInflationActive } from '../viewmodels/storeViewModel'
 import { generateStoreSpecials } from '../services/AIManager'
-import { getProfile } from '../services/db'
+import db, { getProfile } from '../services/db'
 import HapticManager from '../services/HapticManager'
 
 export default function StoreView({ points, onPointsChange, theme }) {
@@ -17,16 +17,24 @@ export default function StoreView({ points, onPointsChange, theme }) {
   const [currentPoints, setCurrentPoints] = useState(points)
 
   const loadAll = useCallback(async () => {
-    setLoading(true)
-    const [fixed, specials, inf] = await Promise.all([
-      getFixedRewards(),
-      getAISpecials(),
-      isInflationActive(),
-    ])
-    setFixedRewards(fixed)
-    setAiSpecials(specials)
-    setInflated(inf)
-    setLoading(false)
+    try {
+      setLoading(true)
+      const [fixed, specials, inf] = await Promise.all([
+        getFixedRewards(),
+        getAISpecials(),
+        isInflationActive(),
+      ])
+      setFixedRewards(fixed || [])
+      setAiSpecials(specials || [])
+      setInflated(inf || false)
+    } catch (error) {
+      console.error('Error loading store data:', error)
+      setFixedRewards([])
+      setAiSpecials([])
+      setInflated(false)
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
   useEffect(() => {
@@ -39,37 +47,55 @@ export default function StoreView({ points, onPointsChange, theme }) {
 
   // ── Generate AI specials on button press ──────────────────
   const handleGenerateSpecials = useCallback(async (asFixed = false) => {
-    setGeneratingAI(true)
-    HapticManager.medium()
+    try {
+      setGeneratingAI(true)
+      HapticManager.medium()
 
-    const profile       = await getProfile()
-    const completedToday = [] 
-    
-    // AI determines baseline
-    const specials = generateStoreSpecials(completedToday, profile)
-    
-    if (asFixed) {
-      // Mark them as isFixed so they join the bottom list
-      specials.forEach(s => { s.isFixed = true; s.isAIGenerated = false }) // false so they show in Always Available
+      const profile       = await getProfile()
+      const today        = new Date().toISOString().split('T')[0]
+      const allTasks     = await db.tasks.toArray()
+      const completedToday = allTasks.filter(t => t.lastCompletedDate === today)
+      
+      // AI determines baseline based on completed tasks
+      const specials = generateStoreSpecials(completedToday, profile)
+      
+      if (asFixed) {
+        // Mark them as isFixed so they join the bottom list
+        specials.forEach(s => { s.isFixed = true; s.isAIGenerated = false }) // false so they show in Always Available
+      }
+
+      await saveAISpecials(specials)
+      await loadAll() // reload lists cleanly
+      HapticManager.success()
+    } catch (error) {
+      console.error('Error generating AI specials:', error)
+      HapticManager.light()
+      setFeedback({ type: 'error', text: 'Failed to generate specials' })
+      setTimeout(() => setFeedback(null), 3000)
+    } finally {
+      setGeneratingAI(false)
     }
-
-    await saveAISpecials(specials)
-    loadAll() // reload lists cleanly
-    setGeneratingAI(false)
-    HapticManager.success()
   }, [loadAll])
 
   // ── Redeem a reward ────────────────────────────────────────
   const handleRedeem = useCallback(async (reward) => {
-    const result = await redeemReward(reward)
-    if (result.success) {
-      HapticManager.celebration()
-      setCurrentPoints(result.balance)
-      onPointsChange?.(result.balance)
-      setFeedback({ id: reward.id, type: 'success' })
-      setTimeout(() => setFeedback(null), 2000)
-      loadAll()
-    } else {
+    try {
+      const result = await redeemReward(reward)
+      if (result.success) {
+        HapticManager.celebration()
+        setCurrentPoints(result.balance)
+        onPointsChange?.(result.balance)
+        setFeedback({ id: reward.id, type: 'success' })
+        setTimeout(() => setFeedback(null), 2000)
+        await loadAll()
+      } else {
+        HapticManager.error()
+        setWiggleId(reward.id)
+        setFeedback({ id: reward.id, type: 'error' })
+        setTimeout(() => { setWiggleId(null); setFeedback(null) }, 600)
+      }
+    } catch (error) {
+      console.error('Error redeeming reward:', error)
       HapticManager.error()
       setWiggleId(reward.id)
       setFeedback({ id: reward.id, type: 'error' })

@@ -7,24 +7,36 @@ import { createReward } from '../models/RewardItem'
  * Get all fixed rewards with inflation applied if applicable
  */
 export async function getFixedRewards() {
-  const profile      = await getProfile()
-  const totalPts     = profile?.totalPoints ?? 0
-  const recentSpend  = profile?.lifetimeSpent ?? 0 // simplified — uses lifetime spend
-  const inflated     = shouldInflate(totalPts, recentSpend % 5000)
+  try {
+    const profile      = await getProfile()
+    const totalPts     = profile?.totalPoints ?? 0
+    const recentSpend  = profile?.lifetimeSpent ?? 0
+    const inflated     = shouldInflate(totalPts, recentSpend % 5000)
 
-  const fixed = await db.rewards.where('isFixed').equals(true).toArray()
-  return fixed.map(r => ({
-    ...r,
-    cost: inflated ? Math.round(r.baseCost * INFLATION_MULT) : r.baseCost,
-    isInflated: inflated,
-  }))
+    const all = await db.rewards.toArray()
+    const fixed = all.filter(r => r.isFixed)
+    return fixed.map(r => ({
+      ...r,
+      cost: inflated ? Math.round(r.baseCost * INFLATION_MULT) : r.baseCost,
+      isInflated: inflated,
+    }))
+  } catch (error) {
+    console.warn('Error fetching fixed rewards:', error)
+    return []
+  }
 }
 
 /**
  * Get AI-generated specials from DB
  */
 export async function getAISpecials() {
-  return db.rewards.where('isAIGenerated').equals(true).toArray()
+  try {
+    const all = await db.rewards.toArray()
+    return all.filter(r => r.isAIGenerated)
+  } catch (error) {
+    console.warn('Error fetching AI specials:', error)
+    return []
+  }
 }
 
 /**

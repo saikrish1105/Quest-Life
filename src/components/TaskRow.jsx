@@ -8,7 +8,7 @@ const SWIPE_THRESHOLD = 80 // px to trigger completion
 /**
  * TaskRow — horizontal swipe-to-complete, 3s undo, long-press context menu
  */
-export default function TaskRow({ task, onComplete, onDelete, onAbandon, pointsEarned }) {
+export default function TaskRow({ task, onComplete, onDelete, onAbandon, pointsEarned, theme }) {
   const [offsetX, setOffsetX] = useState(0)
   const [isDragging, setDragging] = useState(false)
   const [completing, setCompleting] = useState(false)
@@ -49,6 +49,23 @@ export default function TaskRow({ task, onComplete, onDelete, onAbandon, pointsE
     }
   }, [isDragging])
 
+  const triggerComplete = useCallback(() => {
+    if (task.completedToday) return
+    HapticManager.success()
+    setOffsetX(0)
+    setPointsFlash(true)
+    setTimeout(() => setPointsFlash(false), 1200)
+
+    // Start 3-second undo window
+    setShowUndo(true)
+    const timer = setTimeout(() => {
+      setCompleting(true)
+      setShowUndo(false)
+      setTimeout(() => onComplete(task), 550)
+    }, 3000)
+    setUndoTimer(timer)
+  }, [task, onComplete])
+
   const onTouchEnd = useCallback(() => {
     clearTimeout(longPress.current)
     setDragging(false)
@@ -68,22 +85,7 @@ export default function TaskRow({ task, onComplete, onDelete, onAbandon, pointsE
     return () => document.body.classList.remove('hide-bottom-nav')
   }, [showMenu])
 
-  const triggerComplete = useCallback(() => {
-    if (task.completedToday) return
-    HapticManager.success()
-    setOffsetX(0)
-    setPointsFlash(true)
-    setTimeout(() => setPointsFlash(false), 1200)
 
-    // Start 3-second undo window
-    setShowUndo(true)
-    const timer = setTimeout(() => {
-      setCompleting(true)
-      setShowUndo(false)
-      setTimeout(() => onComplete(task), 550)
-    }, 3000)
-    setUndoTimer(timer)
-  }, [task, onComplete])
 
   const handleUndo = useCallback(() => {
     clearTimeout(undoTimer)

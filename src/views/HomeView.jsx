@@ -22,6 +22,7 @@ const NAV_TABS = [
 
 export default function HomeView({ profile, onPointsChange, onNavigate, theme, onToggleTheme }) {
   const [tasks, setTasks]           = useState([])
+  const [loading, setLoading]       = useState(true)
   const [points, setPoints]         = useState(profile?.totalPoints ?? 0)
   const [showAddSheet, setAddSheet] = useState(false)
   const [newTask, setNewTask]       = useState({ title: '', type: TASK_TYPES.DAILY, deadline: '' })
@@ -32,14 +33,22 @@ export default function HomeView({ profile, onPointsChange, onNavigate, theme, o
 
   // ── Load tasks ────────────────────────────────────────────
   const loadTasks = useCallback(async () => {
-    const all = await db.tasks.orderBy('createdAt').reverse().toArray()
-    // Mark completedToday
-    const today = todayStr()
-    const mapped = all.map(t => ({
-      ...t,
-      completedToday: t.lastCompletedDate === today,
-    }))
-    setTasks(mapped)
+    try {
+      setLoading(true)
+      const all = await db.tasks.orderBy('createdAt').reverse().toArray()
+      // Mark completedToday
+      const today = todayStr()
+      const mapped = all.map(t => ({
+        ...t,
+        completedToday: t.lastCompletedDate === today,
+      }))
+      setTasks(mapped)
+    } catch (error) {
+      console.error('Error loading tasks:', error)
+      setTasks([])
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
   useEffect(() => {
@@ -181,6 +190,28 @@ export default function HomeView({ profile, onPointsChange, onNavigate, theme, o
   const p = profile
   const inflationWarning = points >= INFLATION_THRESHOLD
 
+  // Show loading state
+  if (loading && tasks.length === 0) {
+    return (
+      <div style={{ minHeight: '100dvh', position: 'relative' }}>
+        <AnimatedMeshBackground />
+        <div style={{
+          position: 'relative', zIndex: 1,
+          height: '100dvh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexDirection: 'column',
+          gap: '20px',
+          padding: '20px'
+        }}>
+          <div style={{ fontSize: '48px' }}>⚔️</div>
+          <div style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-main)' }}>Loading your quests...</div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div style={{ minHeight: '100dvh', position: 'relative' }}>
       <AnimatedMeshBackground />
@@ -282,6 +313,7 @@ export default function HomeView({ profile, onPointsChange, onNavigate, theme, o
                   key={task.id}
                   task={{ ...task, completedToday: task.lastCompletedDate === today }}
                   pointsEarned={pts}
+                  theme={theme}
                   onComplete={handleComplete}
                   onDelete={handleDelete}
                   onAbandon={handleAbandon}
@@ -306,6 +338,7 @@ export default function HomeView({ profile, onPointsChange, onNavigate, theme, o
                   key={task.id}
                   task={{ ...task, completedToday: task.lastCompletedDate === today }}
                   pointsEarned={pts}
+                  theme={theme}
                   onComplete={handleComplete}
                   onDelete={handleDelete}
                   onAbandon={handleAbandon}
