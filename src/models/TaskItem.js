@@ -14,15 +14,15 @@ export const TASK_CATEGORIES = {
 }
 
 export const CATEGORY_ICONS = {
-  health: '🫀',
-  productivity: '⚡',
-  learning: '📚',
-  creative: '🎨',
-  social: '🤝',
-  fitness: '💪',
-  mindfulness: '🧘',
-  finance: '💰',
-  other: '✨',
+  health: '',
+  productivity: '',
+  learning: '',
+  creative: '',
+  social: '',
+  fitness: '',
+  mindfulness: '',
+  finance: '',
+  other: '',
 }
 
 export const CATEGORY_COLORS = {

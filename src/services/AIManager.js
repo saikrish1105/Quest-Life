@@ -166,6 +166,28 @@ export async function classifyTask(title) {
   }
 }
 
+// ── Validate task semantic meaning ────────────────────────────
+export async function validateTask(title) {
+  const trimmed = title.trim()
+  if (trimmed.length < 3) return false
+  if (/(.)\1{4,}/.test(trimmed)) return false // e.g. "aaaaa"
+  if (!/^[\w\s.,'?!-]+$/.test(trimmed)) return false // mostly symbols
+
+  if (!classifier) return true // fallback if model missing
+
+  try {
+    const result = await classifier(trimmed, ['a meaningful goal or task', 'random nonsense gibberish'], { multi_label: false })
+    const topLabel = result.labels[0]
+    
+    if (topLabel === 'random nonsense gibberish' && result.scores[0] > 0.6) {
+      return false
+    }
+    return true
+  } catch {
+    return true
+  }
+}
+
 // ── Generate a Special Task reward quip ──────────────────────
 /**
  * Returns a cheerleader one-liner after a Special Task is completed.

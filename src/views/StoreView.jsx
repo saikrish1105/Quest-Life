@@ -6,7 +6,7 @@ import { generateStoreSpecials } from '../services/AIManager'
 import { getProfile } from '../services/db'
 import HapticManager from '../services/HapticManager'
 
-export default function StoreView({ points, onPointsChange }) {
+export default function StoreView({ points, onPointsChange, theme }) {
   const [fixedRewards, setFixedRewards]   = useState([])
   const [aiSpecials, setAiSpecials]       = useState([])
   const [inflated, setInflated]           = useState(false)
@@ -38,18 +38,26 @@ export default function StoreView({ points, onPointsChange }) {
   }, [points])
 
   // ── Generate AI specials on button press ──────────────────
-  const handleGenerateSpecials = useCallback(async () => {
+  const handleGenerateSpecials = useCallback(async (asFixed = false) => {
     setGeneratingAI(true)
     HapticManager.medium()
 
     const profile       = await getProfile()
-    const completedToday = [] // could pull from DB for better personalization
+    const completedToday = [] 
+    
+    // AI determines baseline
     const specials = generateStoreSpecials(completedToday, profile)
+    
+    if (asFixed) {
+      // Mark them as isFixed so they join the bottom list
+      specials.forEach(s => { s.isFixed = true; s.isAIGenerated = false }) // false so they show in Always Available
+    }
+
     await saveAISpecials(specials)
-    setAiSpecials(specials)
+    loadAll() // reload lists cleanly
     setGeneratingAI(false)
     HapticManager.success()
-  }, [])
+  }, [loadAll])
 
   // ── Redeem a reward ────────────────────────────────────────
   const handleRedeem = useCallback(async (reward) => {
@@ -126,13 +134,15 @@ export default function StoreView({ points, onPointsChange }) {
                   background: isSuccess
                     ? 'var(--color-sage)'
                     : canAfford
-                    ? 'linear-gradient(135deg, var(--color-terracotta), var(--color-terra-dark))'
-                    : 'rgba(0,0,0,0.10)',
-                  color: canAfford || isSuccess ? 'white' : 'var(--color-charcoal-soft)',
+                    ? theme === 'dark' 
+                      ? 'linear-gradient(135deg, var(--accent-main), #7e22ce)'
+                      : 'linear-gradient(135deg, var(--color-terracotta), var(--color-terra-dark))'
+                    : 'rgba(255,255,255,0.05)',
+                  color: canAfford || isSuccess ? 'white' : 'var(--text-dim)',
                   fontSize: '13px', fontWeight: 600,
                   transition: 'all 0.2s var(--ease-spring)',
                   minWidth: '60px',
-                  boxShadow: canAfford ? '0 2px 10px rgba(196,113,74,0.3)' : 'none',
+                  boxShadow: canAfford ? theme === 'dark' ? '0 0 15px rgba(168, 85, 247, 0.4)' : '0 2px 10px rgba(196,113,74,0.3)' : 'none',
                 }}
                 id={`redeem-${reward.id}`}
                 aria-label={`Redeem ${reward.name}`}
@@ -161,12 +171,14 @@ export default function StoreView({ points, onPointsChange }) {
         {/* Header */}
         <div style={{ marginBottom: '20px', paddingTop: '4px' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
-            <div className="display-md">The Store</div>
-            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '20px', color: 'var(--color-terracotta)' }}>
-              ⚔️ {currentPoints.toLocaleString()} pts
+            <div className="display-md">{theme === 'dark' ? 'Inventory' : 'The Store'}</div>
+            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '20px', color: 'var(--accent-main)' }}>
+              {theme === 'dark' ? '💎' : '⚔️'} {currentPoints.toLocaleString()} {theme === 'dark' ? 'EXP' : 'pts'}
             </div>
           </div>
-          <div className="caption" style={{ marginTop: '4px' }}>Spend wisely. You've earned this.</div>
+          <div className="caption" style={{ marginTop: '4px' }}>
+            {theme === 'dark' ? 'Equip yourself for the next hunt.' : 'Spend wisely. You\'ve earned this.'}
+          </div>
         </div>
 
         {/* Inflation banner */}
@@ -187,13 +199,13 @@ export default function StoreView({ points, onPointsChange }) {
           <div className="section-header">
             <span className="label" style={{ color: 'var(--color-terracotta)' }}>✨ Today's Specials</span>
             <button
-              onClick={handleGenerateSpecials}
+              onClick={() => handleGenerateSpecials(false)}
               disabled={generatingAI}
               className="btn-ghost"
               id="generate-specials-btn"
               style={{ fontSize: '13px' }}
             >
-              {generatingAI ? '🤖 Thinking…' : '🔄 Refresh'}
+              {generatingAI ? '🤖 Thinking…' : '+ Generate More Items'}
             </button>
           </div>
 
@@ -228,6 +240,14 @@ export default function StoreView({ points, onPointsChange }) {
         <div style={{ marginBottom: '24px' }}>
           <div className="section-header">
             <span className="label" style={{ color: 'var(--color-charcoal-mid)' }}>Always Available</span>
+            <button
+              onClick={() => handleGenerateSpecials(true)}
+              disabled={generatingAI}
+              className="btn-ghost"
+              style={{ fontSize: '12px', color: 'var(--color-charcoal-soft)' }}
+            >
+              + AI Generated Fixed
+            </button>
           </div>
 
           {loading ? (

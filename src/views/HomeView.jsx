@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import AnimatedMeshBackground from '../components/AnimatedMeshBackground'
 import GlassCard from '../components/GlassCard'
-import PointsCounter from '../components/PointsCounter'
+import StatusBar from '../components/StatusBar'
 import TaskRow from '../components/TaskRow'
 import ConfettiOverlay from '../components/ConfettiOverlay'
 import db, { getProfile, updateProfile, addPoints } from '../services/db'
-import { classifyTask, generateCompletionQuip, isModelReady, generateStoreSpecials } from '../services/AIManager'
+import { classifyTask, generateCompletionQuip, isModelReady, generateStoreSpecials, validateTask } from '../services/AIManager'
 import HapticManager from '../services/HapticManager'
 import {
   calculateDailyPoints, calculateSpecialPoints, nextStreak,
@@ -20,7 +20,7 @@ const NAV_TABS = [
   { id: 'store', label: 'Store', icon: StoreIcon },
 ]
 
-export default function HomeView({ profile, onPointsChange, onNavigate }) {
+export default function HomeView({ profile, onPointsChange, onNavigate, theme, onToggleTheme }) {
   const [tasks, setTasks]           = useState([])
   const [points, setPoints]         = useState(profile?.totalPoints ?? 0)
   const [showAddSheet, setAddSheet] = useState(false)
@@ -145,6 +145,13 @@ export default function HomeView({ profile, onPointsChange, onNavigate }) {
     if (!newTask.title.trim()) return
     setClassifying(true)
 
+    const isValid = await validateTask(newTask.title.trim())
+    if (!isValid) {
+      setClassifying(false)
+      alert("Quest Brain thinks this quest is a bit nonsensical. Try something more actionable!")
+      return
+    }
+
     const classification = await classifyTask(newTask.title)
     const task = createTask({
       title:         newTask.title.trim(),
@@ -205,11 +212,32 @@ export default function HomeView({ profile, onPointsChange, onNavigate }) {
           paddingTop: 'max(52px, env(safe-area-inset-top))',
         }}
       >
-        {/* Points Hero */}
-        <div style={{ textAlign: 'center', marginBottom: '24px', paddingTop: '8px' }}>
-          <PointsCounter points={points} />
+        {/* Points / Status Bar Hero */}
+        <div style={{ marginBottom: '24px', paddingTop: '8px', position: 'relative' }}>
+          {/* Theme Toggle Button */}
+          <button 
+            onClick={onToggleTheme}
+            style={{
+              position: 'absolute', top: -10, right: 0,
+              width: '40px', height: '40px',
+              borderRadius: '50%',
+              background: theme === 'dark' ? 'rgba(168, 85, 247, 0.2)' : 'rgba(255,255,255,0.5)',
+              border: `1px solid ${theme === 'dark' ? 'var(--accent-main)' : 'var(--color-sand-dark)'}`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '20px', cursor: 'pointer',
+              zIndex: 10,
+              boxShadow: theme === 'dark' ? '0 0 15px rgba(168, 85, 247, 0.4)' : 'none',
+              transition: 'all 0.3s'
+            }}
+            title="Toggle Hunt Mode"
+          >
+            {theme === 'dark' ? '🌌' : '☀️'}
+          </button>
+
+          <StatusBar points={points} theme={theme} />
+          
           {inflationWarning && (
-            <div className="pill pill-gold" style={{ marginTop: '10px', display: 'inline-flex' }}>
+            <div className="pill pill-gold" style={{ marginTop: '10px', display: 'inline-flex', alignSelf: 'center' }}>
               📈 Economy inflating — spend those points!
             </div>
           )}
@@ -241,7 +269,9 @@ export default function HomeView({ profile, onPointsChange, onNavigate }) {
         {dailyTasks.length > 0 && (
           <div style={{ marginBottom: '24px' }}>
             <div className="section-header">
-              <span className="label" style={{ color: 'var(--color-terracotta)' }}>Daily Quests</span>
+              <span className="label" style={{ color: 'var(--accent-main)' }}>
+                {theme === 'dark' ? 'D-Rank Quests' : 'Daily Quests'}
+              </span>
               <span className="caption">{dailyTasks.filter(t => t.lastCompletedDate === today).length}/{dailyTasks.length} done</span>
             </div>
             {dailyTasks.map(task => {
@@ -265,7 +295,9 @@ export default function HomeView({ profile, onPointsChange, onNavigate }) {
         {specialTasks.length > 0 && (
           <div style={{ marginBottom: '24px' }}>
             <div className="section-header">
-              <span className="label" style={{ color: 'var(--color-gold)' }}>⚔️ Boss Fights</span>
+              <span className="label" style={{ color: theme === 'dark' ? '#ef4444' : 'var(--color-gold)' }}>
+                {theme === 'dark' ? 'S-Rank Missions' : '⚔️ Boss Fights'}
+              </span>
             </div>
             {specialTasks.map(task => {
               const pts = calculateSpecialPoints(task, profile?.difficulty ?? 3)

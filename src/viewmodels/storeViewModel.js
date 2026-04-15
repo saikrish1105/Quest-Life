@@ -10,9 +10,9 @@ export async function getFixedRewards() {
   const profile      = await getProfile()
   const totalPts     = profile?.totalPoints ?? 0
   const recentSpend  = profile?.lifetimeSpent ?? 0 // simplified — uses lifetime spend
-  const inflated     = shouldInflate(totalPts, recentSpend % 5000) // resets every 5k spend cycle
+  const inflated     = shouldInflate(totalPts, recentSpend % 5000)
 
-  const fixed = await db.rewards.where('isFixed').equals(1).toArray()
+  const fixed = await db.rewards.where('isFixed').equals(true).toArray()
   return fixed.map(r => ({
     ...r,
     cost: inflated ? Math.round(r.baseCost * INFLATION_MULT) : r.baseCost,
@@ -24,16 +24,14 @@ export async function getFixedRewards() {
  * Get AI-generated specials from DB
  */
 export async function getAISpecials() {
-  return db.rewards.where('isAIGenerated').equals(1).toArray()
+  return db.rewards.where('isAIGenerated').equals(true).toArray()
 }
 
 /**
- * Replace all AI specials with newly generated ones
+ * Add newly generated AI specials without deleting old ones
  */
 export async function saveAISpecials(specials) {
   await db.transaction('rw', db.rewards, async () => {
-    const existing = await db.rewards.where('isAIGenerated').equals(1).toArray()
-    await db.rewards.bulkDelete(existing.map(r => r.id))
     await db.rewards.bulkAdd(specials.map(s => createReward(s)))
   })
 }
@@ -50,6 +48,9 @@ export async function redeemReward(reward) {
   }
 
   const result = await spendPoints(cost, `Redeemed: ${reward.name}`)
+  if (result.success && !reward.isFixed) {
+    await db.rewards.delete(reward.id)
+  }
   return result
 }
 

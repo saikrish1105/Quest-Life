@@ -4,6 +4,7 @@ import LoadingSplash from './components/LoadingSplash'
 import OnboardingView from './views/OnboardingView'
 import HomeView from './views/HomeView'
 import StoreView from './views/StoreView'
+import ProfileView from './views/ProfileView'
 import HapticManager from './services/HapticManager'
 import './index.css'
 
@@ -14,6 +15,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('home')
   const [profile, setProfile]     = useState(null)
   const [points, setPoints]       = useState(0)
+  const [theme, setTheme]         = useState('light') // light | dark
   const [firstLaunch, setFirstLaunch] = useState(false)
 
   // ── Initialize: check onboarding status ──────────────────
@@ -21,14 +23,60 @@ export default function App() {
     getProfile().then(p => {
       setProfile(p ?? null)
       setPoints(p?.totalPoints ?? 0)
+      setTheme(p?.theme || 'light')
 
       if (!p?.onboardingComplete) {
         setFirstLaunch(true)
-        // Still show splash (for model download) on first launch
-        // then go to onboarding
       }
     })
   }, [])
+
+  // ── Apply theme to document ─────────────────────────────
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+  }, [theme])
+
+  const playSound = useCallback((type) => {
+    try {
+      // Simplified web audio synth for sounds if assets aren't present
+      const ctx = new (window.AudioContext || window.webkitAudioContext)()
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+
+      if (type === 'dark') {
+        // Power-up sound: Rising pitch
+        osc.frequency.setValueAtTime(110, ctx.currentTime)
+        osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.6)
+        gain.gain.setValueAtTime(0.3, ctx.currentTime)
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.6)
+      } else {
+        // Calm chime: Soft high note
+        osc.frequency.setValueAtTime(440, ctx.currentTime)
+        gain.gain.setValueAtTime(0.2, ctx.currentTime)
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.8)
+      }
+
+      osc.start()
+      osc.stop(ctx.currentTime + 0.8)
+    } catch (e) {
+      console.warn("Audio Context failed", e)
+    }
+  }, [])
+
+  const setAppTheme = useCallback(async (next) => {
+    if (next === theme) return
+    setTheme(next)
+    playSound(next)
+    HapticManager.notification('success')
+    await updateProfile({ theme: next })
+  }, [theme, playSound])
+
+  const toggleTheme = useCallback(async () => {
+    const next = theme === 'light' ? 'dark' : 'light'
+    await setAppTheme(next)
+  }, [theme, setAppTheme])
 
   const handleSplashDone = useCallback(() => {
     if (firstLaunch || !profile?.onboardingComplete) {
@@ -71,22 +119,33 @@ export default function App() {
       <div style={{ display: activeTab === 'home' ? 'block' : 'none' }}>
         <HomeView
           profile={profile}
+          theme={theme}
           onPointsChange={handlePointsChange}
           onNavigate={switchTab}
+          onToggleTheme={toggleTheme}
         />
       </div>
       <div style={{ display: activeTab === 'store' ? 'block' : 'none' }}>
         <StoreView
           points={points}
+          theme={theme}
           onPointsChange={handlePointsChange}
+        />
+      </div>
+      <div style={{ display: activeTab === 'profile' ? 'block' : 'none' }}>
+        <ProfileView
+          profile={profile}
+          theme={theme}
+          onSetTheme={setAppTheme}
         />
       </div>
 
       {/* Bottom Navigation */}
       <nav className="bottom-nav" role="navigation" aria-label="Main navigation">
         {[
-          { id: 'home',  label: 'Home',  emoji: '🏠' },
-          { id: 'store', label: 'Store', emoji: '🛍️' },
+          { id: 'home',  label: theme === 'dark' ? 'Quest' : 'Home',  emoji: theme === 'dark' ? '⚔️' : '🏠' },
+          { id: 'store', label: theme === 'dark' ? 'Inventory' : 'Store', emoji: theme === 'dark' ? '💎' : '🛍️' },
+          { id: 'profile', label: theme === 'dark' ? 'Hunter' : 'Profile', emoji: theme === 'dark' ? '👤' : '⚙️' },
         ].map(tab => (
           <button
             key={tab.id}

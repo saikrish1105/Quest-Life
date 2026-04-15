@@ -7,20 +7,24 @@ import HapticManager from '../services/HapticManager'
 import { db, updateProfile } from '../services/db'
 import { createTask, TASK_TYPES, TASK_CATEGORIES, BASE_VALUES } from '../models/TaskItem'
 
-const STEPS = ['mainQuest', 'sideQuests', 'vices', 'difficulty']
+const STEPS = ['mainQuest', 'customMainQuest', 'sideQuests', 'vices', 'difficulty']
 
 const STEP_META = {
-  mainQuest:  { title: 'Your Main Quest',       subtitle: 'What defines your daily grind?',     emoji: '⚔️' },
-  sideQuests: { title: 'Side Quests',            subtitle: 'What else do you level up at?',      emoji: '🎯' },
-  vices:      { title: 'Your Guilty Pleasures',  subtitle: 'What rewards will drive you?',       emoji: '😈' },
-  difficulty: { title: 'Set the Difficulty',     subtitle: 'How hard do you want to go?',        emoji: '🎮' },
+  mainQuest:       { title: 'Your Main Quest',       subtitle: 'What defines your daily grind?' },
+  customMainQuest: { title: 'Custom Quest',          subtitle: 'Define your own path.' },
+  sideQuests:      { title: 'Side Quests',           subtitle: 'What else do you level up at?' },
+  vices:           { title: 'Your Guilty Pleasures', subtitle: 'What rewards will drive you?' },
+  difficulty:      { title: 'Set the Difficulty',    subtitle: 'How hard do you want to go?' },
 }
 
 export default function OnboardingView({ onComplete }) {
   const [step, setStep]             = useState(0)
   const [mainQuest, setMainQuest]   = useState(null)
+  const [customMainValue, setCustomMainValue] = useState('')
   const [sideQuests, setSideQuests] = useState([])
+  const [customSideValue, setCustomSideValue] = useState('')
   const [vices, setVices]           = useState([])
+  const [customViceValue, setCustomViceValue] = useState('')
   const [difficulty, setDifficulty] = useState(3)
   const [cardIndex, setCardIndex]   = useState(0)
   const [saving, setSaving]         = useState(false)
@@ -31,7 +35,6 @@ export default function OnboardingView({ onComplete }) {
   // ── Step 1: Main Quest cards ──────────────────────────────
   const mainQuestCards = MAIN_QUESTS.map(q => (
     <GlassCard key={q.id} variant="heavy" style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px', padding: '32px 24px' }}>
-      <span style={{ fontSize: '56px' }}>{q.emoji}</span>
       <div style={{ textAlign: 'center' }}>
         <div className="display-md" style={{ marginBottom: '8px' }}>{q.label}</div>
         <div className="caption">{q.description}</div>
@@ -47,10 +50,23 @@ export default function OnboardingView({ onComplete }) {
     const quest = MAIN_QUESTS[idx]
     if (dir === 'right') {
       setMainQuest(quest.id)
-      nextStep()
+      if (quest.id === 'other') {
+        setStep(s => s + 1) // go to custom
+      } else {
+        setStep(s => s + 2) // skip custom
+      }
       setCardIndex(0)
-    } else if (idx + 1 < MAIN_QUESTS.length) {
-      setCardIndex(idx + 1)
+    } else {
+      setCardIndex((idx + 1) % MAIN_QUESTS.length)
+    }
+  }
+
+  const prevStep = () => {
+    HapticManager.light()
+    if (step === 2 && mainQuest !== 'other') {
+      setStep(0)
+    } else if (step > 0) {
+      setStep(s => s - 1)
     }
   }
 
@@ -60,10 +76,28 @@ export default function OnboardingView({ onComplete }) {
     setSideQuests(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
   }
 
+  const addCustomSideQuest = () => {
+    if (customSideValue.trim()) {
+      const id = 'custom_' + Date.now()
+      SIDE_QUESTS.push({ id, label: customSideValue.trim() })
+      toggleSideQuest(id)
+      setCustomSideValue('')
+    }
+  }
+
   // ── Step 3: Vices multi-select ────────────────────────────
   const toggleVice = (id) => {
     HapticManager.light()
     setVices(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  }
+
+  const addCustomVice = () => {
+    if (customViceValue.trim()) {
+      const id = 'custom_vice_' + Date.now()
+      VICES.push({ id, label: customViceValue.trim() })
+      toggleVice(id)
+      setCustomViceValue('')
+    }
   }
 
   const nextStep = () => {
@@ -142,8 +176,10 @@ export default function OnboardingView({ onComplete }) {
     HapticManager.celebration()
     
     // Update profile with selections
+    const finalMainQuest = mainQuest === 'other' && customMainValue.trim() ? customMainValue.trim() : mainQuest
+
     await updateProfile({ 
-      mainQuest, 
+      mainQuest: finalMainQuest, 
       sideQuests, 
       vices, 
       difficulty, 
@@ -152,7 +188,7 @@ export default function OnboardingView({ onComplete }) {
     })
 
     // Generate and save starter tasks based on profile
-    const starterTasks = generateStarterTasks(mainQuest, sideQuests, difficulty)
+    const starterTasks = generateStarterTasks(finalMainQuest, sideQuests, difficulty)
     for (const task of starterTasks) {
       await db.tasks.add(task)
     }
@@ -183,10 +219,16 @@ export default function OnboardingView({ onComplete }) {
         </div>
 
         {/* Header */}
-        <div style={{ marginBottom: '24px' }}>
-          <div style={{ fontSize: '36px', marginBottom: '8px' }}>{meta.emoji}</div>
-          <div className="display-md" style={{ marginBottom: '6px' }}>{meta.title}</div>
-          <div className="caption" style={{ fontSize: '14px' }}>{meta.subtitle}</div>
+        <div style={{ marginBottom: '24px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+          <div>
+            <div className="display-md" style={{ marginBottom: '6px' }}>{meta.title}</div>
+            <div className="caption" style={{ fontSize: '14px' }}>{meta.subtitle}</div>
+          </div>
+          {step > 0 && (
+            <button onClick={prevStep} style={{ color: 'var(--color-charcoal-mid)', fontWeight: 600, fontSize: '13px', background: 'rgba(255,255,255,0.2)', padding: '6px 12px', borderRadius: '14px' }}>
+              Back
+            </button>
+          )}
         </div>
 
         {/* Step content */}
@@ -207,18 +249,38 @@ export default function OnboardingView({ onComplete }) {
             </>
           )}
 
+          {currentStep === 'customMainQuest' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <input
+                className="input-field"
+                placeholder="E.g., Indie Hacker, Gymnast..."
+                value={customMainValue}
+                onChange={e => setCustomMainValue(e.target.value)}
+                autoFocus
+              />
+              <button className="btn-primary" onClick={nextStep} disabled={!customMainValue.trim()}>
+                Continue →
+              </button>
+            </div>
+          )}
+
           {/* STEP 2: Side Quests grid */}
           {currentStep === 'sideQuests' && (
             <>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', maxHeight: '340px', overflowY: 'auto' }}>
-                {SIDE_QUESTS.map(sq => {
+              {/* Dynamic Filtering based on mainQuest */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', maxHeight: '280px', overflowY: 'auto', marginBottom: '14px' }}>
+                {SIDE_QUESTS.filter(sq => {
+                  if (mainQuest === 'student') return ['gym', 'music', 'reading', 'gaming', 'language'].includes(sq.id) || sq.id.startsWith('custom_')
+                  if (mainQuest === 'worker') return ['gym', 'reading', 'travel', 'meditation', 'cooking'].includes(sq.id) || sq.id.startsWith('custom_')
+                  return true
+                }).map(sq => {
                   const selected = sideQuests.includes(sq.id)
                   return (
                     <button
                       key={sq.id}
                       onClick={() => toggleSideQuest(sq.id)}
                       style={{
-                        padding: '14px 8px',
+                        padding: '12px 8px',
                         borderRadius: 'var(--radius-md)',
                         background: selected ? 'rgba(196,113,74,0.18)' : 'rgba(255,255,255,0.12)',
                         border: selected ? '2px solid var(--color-terracotta)' : '2px solid rgba(255,255,255,0.2)',
@@ -228,15 +290,26 @@ export default function OnboardingView({ onComplete }) {
                         transform: selected ? 'scale(1.04)' : 'scale(1)',
                       }}
                     >
-                      <span style={{ fontSize: '24px' }}>{sq.emoji}</span>
-                      <span style={{ fontSize: '11px', fontWeight: 600, color: selected ? 'var(--color-terracotta)' : 'var(--color-charcoal)', lineHeight: 1.2, textAlign: 'center' }}>
+                      <span style={{ fontSize: '12px', fontWeight: 600, color: selected ? 'var(--color-terracotta)' : 'var(--color-charcoal)', lineHeight: 1.2, textAlign: 'center' }}>
                         {sq.label}
                       </span>
                     </button>
                   )
                 })}
               </div>
-              <button className="btn-primary" onClick={nextStep} style={{ marginTop: '20px' }}>
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+                <input
+                  className="input-field"
+                  placeholder="Type your own..."
+                  value={customSideValue}
+                  onChange={e => setCustomSideValue(e.target.value)}
+                  style={{ flex: 1 }}
+                />
+                <button className="btn-secondary" onClick={addCustomSideQuest} style={{ whiteSpace: 'nowrap' }}>
+                  Add
+                </button>
+              </div>
+              <button className="btn-primary" onClick={nextStep}>
                 Continue {sideQuests.length > 0 ? `(${sideQuests.length} selected)` : '→'}
               </button>
             </>
@@ -245,8 +318,12 @@ export default function OnboardingView({ onComplete }) {
           {/* STEP 3: Vices grid */}
           {currentStep === 'vices' && (
             <>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
-                {VICES.map(v => {
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', maxHeight: '280px', overflowY: 'auto', marginBottom: '14px' }}>
+                {VICES.filter(v => {
+                  if (mainQuest === 'student') return ['binge_tv', 'gaming', 'social_media', 'napping'].includes(v.id) || v.id.startsWith('custom_')
+                  if (mainQuest === 'worker') return ['coffee', 'junk_food', 'binge_tv', 'procrastination'].includes(v.id) || v.id.startsWith('custom_')
+                  return true
+                }).map(v => {
                   const selected = vices.includes(v.id)
                   return (
                     <button
@@ -258,12 +335,11 @@ export default function OnboardingView({ onComplete }) {
                         background: selected ? 'rgba(196,90,90,0.15)' : 'rgba(255,255,255,0.12)',
                         border: selected ? '2px solid var(--color-miss-red)' : '2px solid rgba(255,255,255,0.2)',
                         backdropFilter: 'blur(12px)',
-                        display: 'flex', alignItems: 'center', gap: '12px',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
                         transition: 'all 0.2s var(--ease-spring)',
-                        textAlign: 'left',
+                        textAlign: 'center',
                       }}
                     >
-                      <span style={{ fontSize: '26px' }}>{v.emoji}</span>
                       <span style={{ fontSize: '13px', fontWeight: 600, color: selected ? 'var(--color-miss-red)' : 'var(--color-charcoal)' }}>
                         {v.label}
                       </span>
@@ -271,49 +347,74 @@ export default function OnboardingView({ onComplete }) {
                   )
                 })}
               </div>
-              <button className="btn-primary" onClick={nextStep} style={{ marginTop: '20px' }}>
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+                <input
+                  className="input-field"
+                  placeholder="Type your own..."
+                  value={customViceValue}
+                  onChange={e => setCustomViceValue(e.target.value)}
+                  style={{ flex: 1 }}
+                />
+                <button className="btn-secondary" onClick={addCustomVice} style={{ whiteSpace: 'nowrap' }}>
+                  Add
+                </button>
+              </div>
+              <button className="btn-primary" onClick={nextStep}>
                 Continue {vices.length > 0 ? `(${vices.length} selected)` : '→'}
               </button>
             </>
           )}
 
           {/* STEP 4: Difficulty */}
-          {currentStep === 'difficulty' && (
+          {currentStep === 'difficulty' && (() => {
+            const displayDiff = Math.abs(difficulty - Math.round(difficulty)) < 0.1 
+              ? Math.round(difficulty) 
+              : difficulty
+            const currentLabel = DIFFICULTY_LABELS[Math.round(difficulty)]
+
+            return (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
               <GlassCard variant="heavy" style={{ padding: '28px', textAlign: 'center' }}>
-                <div style={{ fontSize: '52px', marginBottom: '12px' }}>{diffLabel.emoji}</div>
-                <div className="display-md" style={{ marginBottom: '8px' }}>{diffLabel.label}</div>
-                <div className="caption">{diffLabel.description}</div>
+                <div className="display-md" style={{ marginBottom: '8px' }}>{currentLabel.label}</div>
+                <div className="caption">{currentLabel.description}</div>
               </GlassCard>
 
               <div>
                 <input
                   type="range"
-                  min="1" max="5" step="1"
+                  min="1" max="5" step="0.01"
                   value={difficulty}
-                  onChange={e => { HapticManager.light(); setDifficulty(Number(e.target.value)) }}
+                  onChange={e => { 
+                    const val = parseFloat(e.target.value)
+                    setDifficulty(val)
+                    if (Math.abs(val - Math.round(val)) < 0.05) HapticManager.light() 
+                  }}
                   className="difficulty-slider"
                   id="difficulty-slider"
                   aria-label="Difficulty level"
                 />
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px' }}>
-                  <span className="caption">Casual 😌</span>
-                  <span className="caption">Hardcore 💀</span>
+                  <span className="caption">Casual</span>
+                  <span className="caption">Hardcore</span>
                 </div>
               </div>
 
               <button
                 className="btn-primary"
-                onClick={handleFinish}
+                onClick={() => {
+                  setDifficulty(Math.round(difficulty))
+                  handleFinish()
+                }}
                 disabled={saving}
                 style={{ opacity: saving ? 0.7 : 1 }}
               >
                 {saving ? 'Starting your quest…' : '⚔️  Begin Quest Life'}
               </button>
             </div>
-          )}
+          )})()}
         </div>
       </div>
     </div>
   )
 }
+

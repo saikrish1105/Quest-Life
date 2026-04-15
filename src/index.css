@@ -5,29 +5,20 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800&display=swap');
 
 /* ── Color Tokens ─────────────────────────────────────────── */
+/* ── Color & Theme Tokens ─────────────────────────────────── */
 :root {
+  /* Default Branding (Light/Aesthetic) */
+  --color-terracotta:  #C4714A;
+  --color-terra-dark:  #A85A37;
+  --color-sage:        #87A878;
   --color-sand:        #F5ECD7;
   --color-sand-dark:   #EDD9B8;
   --color-peach:       #F7D7C4;
-  --color-peach-mid:   #F0C4A8;
-  --color-terracotta:  #C4714A;
-  --color-terra-light: #D98A63;
-  --color-terra-dark:  #A85A37;
-  --color-sage:        #87A878;
-  --color-sage-light:  #A8C49A;
   --color-charcoal:    #3D3D3D;
   --color-charcoal-mid:#5A5A5A;
   --color-charcoal-soft:#7A7A7A;
-  --color-white:       #FFFFFF;
-  --color-miss-red:    #C45A5A;
   --color-gold:        #D4A847;
-
-  /* Glass */
-  --glass-bg:          rgba(255, 255, 255, 0.14);
-  --glass-bg-heavy:    rgba(255, 255, 255, 0.22);
-  --glass-border:      rgba(255, 255, 255, 0.30);
-  --glass-shadow:      0 8px 32px rgba(60, 40, 20, 0.12);
-  --glass-blur:        blur(20px);
+  --color-miss-red:    #C45A5A;
 
   /* Typography */
   --font-display:      'Outfit', sans-serif;
@@ -39,23 +30,65 @@
   --space-md:  16px;
   --space-lg:  24px;
   --space-xl:  32px;
-  --space-2xl: 48px;
-  --space-3xl: 64px;
 
   /* Radii */
-  --radius-sm:   10px;
-  --radius-md:   16px;
-  --radius-lg:   24px;
-  --radius-xl:   32px;
+  --radius-sm:   12px;
+  --radius-md:   18px;
+  --radius-lg:   28px;
+  --radius-xl:   40px;
   --radius-full: 9999px;
 
   /* Transitions */
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
-  --ease-out:    cubic-bezier(0, 0, 0.2, 1);
-  --dur-fast:    150ms;
-  --dur-mid:     300ms;
-  --dur-slow:    500ms;
+  --dur-fast:    200ms;
+  --dur-mid:     400ms;
+  --dur-slow:    700ms;
+}
+
+/* ── Light Theme (Apple Wellbeing) ────────────────────────── */
+[data-theme='light'] {
+  --bg-main: var(--color-sand);
+  --text-main: var(--color-charcoal);
+  --text-dim: var(--color-charcoal-soft);
+  --accent-main: var(--color-terracotta);
+  --accent-secondary: var(--color-sage);
+  
+  --glass-bg: rgba(255, 255, 255, 0.18);
+  --glass-border: rgba(255, 255, 255, 0.4);
+  --glass-blur: blur(24px);
+  --card-shadow: 0 10px 40px rgba(60, 40, 20, 0.08);
+
+  --blob-1: #F0C4A8;
+  --blob-2: #D98A63;
+  --blob-3: #A8C49A;
+  --blob-4: #F5ECD7;
+}
+
+/* ── Dark Theme (Solo Leveling - Game Mode) ────────────────── */
+[data-theme='dark'] {
+  --bg-main: #0a0a0c;
+  --text-main: #ffffff;
+  --text-dim: #94a3b8;
+  --accent-main: #a855f7; /* Electric Purple */
+  --accent-secondary: #3b82f6; /* Electric Blue */
+  
+  --glass-bg: rgba(15, 15, 20, 0.4);
+  --glass-border: rgba(168, 85, 247, 0.3);
+  --glass-blur: blur(30px);
+  --card-shadow: 0 10px 50px rgba(0, 0, 0, 0.5), 0 0 20px rgba(168, 85, 247, 0.1);
+
+  --blob-1: #4c1d95; /* Deep Purple */
+  --blob-2: #1e3a8a; /* Deep Blue */
+  --blob-3: #7e22ce; /* Bright Purple */
+  --blob-4: #0f172a; /* Void */
+
+  /* Override specific component colors */
+  --color-sand: #111827;
+  --color-charcoal: #f8fafc;
+  --color-charcoal-mid: #cbd5e1;
+  --color-charcoal-soft: #94a3b8;
+  --color-sand-dark: #1e293b;
 }
 
 /* ── Reset & Base ─────────────────────────────────────────── */
@@ -103,45 +136,66 @@ input, textarea {
 }
 
 /* ── Animated Mesh Background ─────────────────────────────── */
+/* ── Animated Fluid Background ────────────────────────────── */
 .mesh-bg {
   position: fixed;
   inset: 0;
   z-index: 0;
   overflow: hidden;
   pointer-events: none;
+  background-color: var(--bg-main);
+  transition: background-color var(--dur-slow) var(--ease-smooth);
 }
 
 .mesh-blob {
   position: absolute;
   border-radius: 50%;
   filter: blur(80px);
-  opacity: 0.55;
-  will-change: transform;
+  opacity: 0.45;
+  will-change: transform, background;
+  transition: background var(--dur-slow) var(--ease-smooth), opacity var(--dur-slow);
 }
 
 .mesh-blob-1 {
-  width: 65vw; height: 65vw;
-  background: radial-gradient(circle, #F0C4A8 0%, #F7D7C4 60%, transparent 100%);
-  top: -10%;  left: -10%;
-  animation: blob1 14s ease-in-out infinite;
+  width: 80vw; height: 80vw;
+  background: radial-gradient(circle, var(--blob-1) 0%, transparent 70%);
+  top: -20%; left: -20%;
+  animation: fluid-1 25s ease-in-out infinite alternate;
 }
 .mesh-blob-2 {
-  width: 55vw; height: 55vw;
-  background: radial-gradient(circle, #D98A63 0%, #C4714A44 60%, transparent 100%);
-  top: 30%; right: -10%;
-  animation: blob2 18s ease-in-out infinite;
+  width: 70vw; height: 70vw;
+  background: radial-gradient(circle, var(--blob-2) 0%, transparent 70%);
+  top: 20%; right: -15%;
+  animation: fluid-2 30s ease-in-out infinite alternate-reverse;
 }
 .mesh-blob-3 {
-  width: 70vw; height: 70vw;
-  background: radial-gradient(circle, #A8C49A 0%, #87A87844 70%, transparent 100%);
-  bottom: -15%; left: 10%;
-  animation: blob3 16s ease-in-out infinite;
+  width: 90vw; height: 90vw;
+  background: radial-gradient(circle, var(--blob-3) 0%, transparent 70%);
+  bottom: -25%; left: 10%;
+  animation: fluid-3 28s ease-in-out infinite alternate;
 }
 .mesh-blob-4 {
-  width: 40vw; height: 40vw;
-  background: radial-gradient(circle, #F5ECD7 0%, transparent 70%);
-  top: 45%; left: 25%;
-  animation: blob4 12s ease-in-out infinite;
+  width: 50vw; height: 50vw;
+  background: radial-gradient(circle, var(--blob-4) 0%, transparent 70%);
+  top: 40%; left: 30%;
+  animation: fluid-4 20s ease-in-out infinite alternate-reverse;
+}
+
+@keyframes fluid-1 {
+  0%   { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(10vw, 15vh) scale(1.1); }
+}
+@keyframes fluid-2 {
+  0%   { transform: translate(0, 0) scale(1.1); }
+  100% { transform: translate(-15vw, -10vh) scale(0.9); }
+}
+@keyframes fluid-3 {
+  0%   { transform: translate(0, 0) rotate(0deg); }
+  100% { transform: translate(-10vw, -15vh) rotate(15deg); }
+}
+@keyframes fluid-4 {
+  0%   { transform: translate(0, 0) scale(0.9); }
+  100% { transform: translate(8vw, -12Vh) scale(1.2); }
 }
 
 @keyframes blob1 {
@@ -165,22 +219,26 @@ input, textarea {
 }
 
 /* ── Glass Card ───────────────────────────────────────────── */
+/* ── Glass Card ───────────────────────────────────────────── */
 .glass-card {
   background: var(--glass-bg);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
-  box-shadow: var(--glass-shadow);
+  box-shadow: var(--card-shadow);
+  color: var(--text-main);
+  transition: all var(--dur-mid) var(--ease-smooth);
 }
 
 .glass-card-heavy {
-  background: var(--glass-bg-heavy);
-  backdrop-filter: blur(30px);
-  -webkit-backdrop-filter: blur(30px);
+  background: var(--glass-bg);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
-  box-shadow: 0 12px 48px rgba(60, 40, 20, 0.18);
+  box-shadow: var(--card-shadow);
+  color: var(--text-main);
 }
 
 /* ── Breathing Animation (Points Counter) ─────────────────── */
@@ -306,6 +364,12 @@ input, textarea {
   align-items: center;
   height: calc(72px + env(safe-area-inset-bottom));
   z-index: 100;
+  transition: transform 0.3s var(--ease-spring);
+}
+
+body.hide-bottom-nav .bottom-nav {
+  transform: translateY(150%);
+  pointer-events: none;
 }
 
 .nav-item {
@@ -607,7 +671,7 @@ input, textarea {
 
 /* ── Utility ──────────────────────────────────────────────── */
 .safe-top    { padding-top: env(safe-area-inset-top); }
-.safe-bottom { padding-bottom: calc(80px + env(safe-area-inset-bottom)); }
+.safe-bottom { padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
 .flex-center { display: flex; align-items: center; justify-content: center; }
 .flex-between{ display: flex; align-items: center; justify-content: space-between; }
 .flex-col    { display: flex; flex-direction: column; }

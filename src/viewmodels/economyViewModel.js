@@ -20,10 +20,11 @@ export function frequencyPenalty(dailyCompletionCount) {
 
 /**
  * Calculate difficulty multiplier based on user's global difficulty setting
- * Casual (1) → 0.6, Normal (3) → 1.0, Hardcore (5) → 1.6
+ * Inverted: Casual (1) → 1.5, Easy (2) → 1.2, Normal (3) → 1.0, Hard (4) → 0.8, Hardcore (5) → 0.6
+ * Higher difficulty means fewer points for the same task.
  */
 export function difficultyMultiplier(difficultyLevel) {
-  const map = { 1: 0.6, 2: 0.8, 3: 1.0, 4: 1.3, 5: 1.6 }
+  const map = { 1: 1.5, 2: 1.2, 3: 1.0, 4: 0.8, 5: 0.6 }
   return map[difficultyLevel] ?? 1.0
 }
 

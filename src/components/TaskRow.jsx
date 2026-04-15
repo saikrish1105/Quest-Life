@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback } from 'react'
+import React, { useRef, useState, useCallback, useEffect } from 'react'
 import { CATEGORY_ICONS, CATEGORY_COLORS, TASK_TYPES } from '../models/TaskItem'
 import { streakTier } from '../viewmodels/economyViewModel'
 import HapticManager from '../services/HapticManager'
@@ -9,20 +9,20 @@ const SWIPE_THRESHOLD = 80 // px to trigger completion
  * TaskRow — horizontal swipe-to-complete, 3s undo, long-press context menu
  */
 export default function TaskRow({ task, onComplete, onDelete, onAbandon, pointsEarned }) {
-  const [offsetX, setOffsetX]     = useState(0)
+  const [offsetX, setOffsetX] = useState(0)
   const [isDragging, setDragging] = useState(false)
   const [completing, setCompleting] = useState(false)
-  const [showUndo, setShowUndo]   = useState(false)
+  const [showUndo, setShowUndo] = useState(false)
   const [undoTimer, setUndoTimer] = useState(null)
-  const [showMenu, setShowMenu]   = useState(false)
+  const [showMenu, setShowMenu] = useState(false)
   const [pointsFlash, setPointsFlash] = useState(false)
 
-  const startX    = useRef(0)
-  const rowRef    = useRef(null)
+  const startX = useRef(0)
+  const rowRef = useRef(null)
   const longPress = useRef(null)
 
   const swipeProgress = Math.min(1, Math.abs(offsetX) / SWIPE_THRESHOLD)
-  const isRightSwipe  = offsetX > 0
+  const isRightSwipe = offsetX > 0
 
   // ── Touch handlers ────────────────────────────────────────
   const onTouchStart = useCallback((e) => {
@@ -55,10 +55,18 @@ export default function TaskRow({ task, onComplete, onDelete, onAbandon, pointsE
 
     if (offsetX > SWIPE_THRESHOLD) {
       triggerComplete()
+    } else if (offsetX < -SWIPE_THRESHOLD) {
+      onDelete(task)
     } else {
       setOffsetX(0)
     }
-  }, [offsetX])
+  }, [offsetX, triggerComplete, onDelete, task])
+
+  useEffect(() => {
+    if (showMenu) document.body.classList.add('hide-bottom-nav')
+    else document.body.classList.remove('hide-bottom-nav')
+    return () => document.body.classList.remove('hide-bottom-nav')
+  }, [showMenu])
 
   const triggerComplete = useCallback(() => {
     if (task.completedToday) return
@@ -87,7 +95,7 @@ export default function TaskRow({ task, onComplete, onDelete, onAbandon, pointsE
   const tier = streakTier(task.streak)
 
   const categoryColor = CATEGORY_COLORS[task.category] ?? 'var(--color-charcoal-soft)'
-  const categoryIcon  = CATEGORY_ICONS[task.category]  ?? '✨'
+  const categoryIcon = CATEGORY_ICONS[task.category] ?? '✨'
 
   return (
     <>
@@ -148,7 +156,19 @@ export default function TaskRow({ task, onComplete, onDelete, onAbandon, pointsE
                   {task.title}
                 </span>
                 {task.type === TASK_TYPES.SPECIAL && (
-                  <span className="pill pill-gold" style={{ fontSize: '10px', padding: '2px 8px' }}>BOSS</span>
+                  <span
+                    className="pill"
+                    style={{
+                      fontSize: '10px', padding: '2px 8px',
+                      background: theme === 'dark' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(212,168,71,0.15)',
+                      color: theme === 'dark' ? '#ef4444' : 'var(--color-gold)',
+                      border: theme === 'dark' ? '1px solid rgba(239, 68, 68, 0.4)' : 'none',
+                      fontWeight: 800,
+                      letterSpacing: '0.05em'
+                    }}
+                  >
+                    {theme === 'dark' ? 'S-RANK' : 'BOSS'}
+                  </span>
                 )}
               </div>
 
@@ -177,16 +197,19 @@ export default function TaskRow({ task, onComplete, onDelete, onAbandon, pointsE
               <div
                 style={{
                   fontSize: '17px',
-                  fontWeight: 700,
+                  fontWeight: 800,
                   fontFamily: 'var(--font-display)',
-                  color: 'var(--color-terracotta)',
+                  color: 'var(--accent-main)',
                   transform: pointsFlash ? 'scale(1.3)' : 'scale(1)',
                   transition: 'transform 0.3s var(--ease-spring)',
+                  textShadow: theme === 'dark' ? '0 0 10px rgba(168, 85, 247, 0.5)' : 'none',
                 }}
               >
                 +{(pointsEarned ?? task.baseValue).toLocaleString()}
               </div>
-              <div className="caption" style={{ fontSize: '10px' }}>pts</div>
+              <div className="caption" style={{ fontSize: '10px', color: 'var(--text-dim)', fontWeight: 700 }}>
+                {theme === 'dark' ? 'EXP' : 'pts'}
+              </div>
             </div>
           </div>
 
@@ -213,30 +236,33 @@ export default function TaskRow({ task, onComplete, onDelete, onAbandon, pointsE
             bottom: 'calc(90px + env(safe-area-inset-bottom))',
             left: '50%',
             transform: 'translateX(-50%)',
-            background: 'var(--color-charcoal)',
-            color: 'var(--color-sand)',
+            background: theme === 'dark' ? '#1e293b' : 'var(--color-charcoal)',
+            color: 'white',
             padding: '10px 20px',
-            borderRadius: 'var(--radius-full)',
+            borderRadius: 'var(--radius-md)',
             display: 'flex',
             alignItems: 'center',
             gap: '12px',
             zIndex: 5000,
             fontSize: '14px',
-            fontWeight: 500,
-            boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
+            fontWeight: 600,
+            boxShadow: theme === 'dark' ? '0 0 20px rgba(0,0,0,0.4), 0 0 10px rgba(168, 85, 247, 0.2)' : '0 4px 16px rgba(0,0,0,0.25)',
+            border: theme === 'dark' ? '1px solid rgba(168, 85, 247, 0.3)' : 'none',
             animation: 'fadeUp 0.3s var(--ease-spring)',
           }}
         >
-          <span>+{(pointsEarned ?? task.baseValue).toLocaleString()} pts earned!</span>
+          <span>+{(pointsEarned ?? task.baseValue).toLocaleString()} {theme === 'dark' ? 'EXP' : 'pts'} earned!</span>
           <button
             onClick={handleUndo}
             style={{
-              background: 'var(--color-terracotta)',
+              background: 'var(--accent-main)',
               color: 'white',
-              padding: '4px 12px',
-              borderRadius: 'var(--radius-full)',
-              fontSize: '13px',
-              fontWeight: 600,
+              padding: '6px 14px',
+              borderRadius: 'var(--radius-sm)',
+              fontSize: '12px',
+              fontWeight: 800,
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em'
             }}
           >
             Undo
@@ -271,7 +297,7 @@ export default function TaskRow({ task, onComplete, onDelete, onAbandon, pointsE
             {[
               { label: '✓  Complete now', action: () => { setShowMenu(false); triggerComplete() }, color: 'var(--color-sage)' },
               { label: '🏳  Abandon task', action: () => { setShowMenu(false); onAbandon(task) }, color: 'var(--color-charcoal-mid)' },
-              { label: '🗑  Delete',        action: () => { setShowMenu(false); onDelete(task) },  color: 'var(--color-miss-red)' },
+              { label: '🗑  Delete', action: () => { setShowMenu(false); onDelete(task) }, color: 'var(--color-miss-red)' },
             ].map(item => (
               <button
                 key={item.label}
