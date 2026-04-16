@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { getProfile } from './services/db'
+import { getProfile, updateProfile } from './services/db'
 import LoadingSplash from './components/LoadingSplash'
 import OnboardingView from './views/OnboardingView'
 import HomeView from './views/HomeView'
 import StoreView from './views/StoreView'
+import DungeonView from './views/DungeonView'
 import ProfileView from './views/ProfileView'
 import HapticManager from './services/HapticManager'
 import './index.css'
@@ -125,11 +126,19 @@ export default function App() {
           onToggleTheme={toggleTheme}
         />
       </div>
+      <div style={{ display: activeTab === 'dungeon' ? 'block' : 'none' }}>
+        <DungeonView
+          profile={profile}
+          theme={theme}
+          onPointsChange={handlePointsChange}
+        />
+      </div>
       <div style={{ display: activeTab === 'store' ? 'block' : 'none' }}>
         <StoreView
           points={points}
           theme={theme}
           onPointsChange={handlePointsChange}
+          profile={profile}
         />
       </div>
       <div style={{ display: activeTab === 'profile' ? 'block' : 'none' }}>
@@ -137,15 +146,17 @@ export default function App() {
           profile={profile}
           theme={theme}
           onSetTheme={setAppTheme}
+          onProfileUpdate={setProfile}
         />
       </div>
 
       {/* Bottom Navigation */}
       <nav className="bottom-nav" role="navigation" aria-label="Main navigation">
         {[
-          { id: 'home',  label: theme === 'dark' ? 'Quest' : 'Home',  emoji: theme === 'dark' ? '⚔️' : '🏠' },
-          { id: 'store', label: theme === 'dark' ? 'Inventory' : 'Store', emoji: theme === 'dark' ? '💎' : '🛍️' },
-          { id: 'profile', label: theme === 'dark' ? 'Hunter' : 'Profile', emoji: theme === 'dark' ? '👤' : '⚙️' },
+          { id: 'home',     label: theme === 'dark' ? 'Quest' : 'Home',      emoji: theme === 'dark' ? '⚔️' : '🏠' },
+          { id: 'dungeon',  label: theme === 'dark' ? 'Dungeon' : 'Surprises', emoji: theme === 'dark' ? '🌀' : '✨' },
+          { id: 'store',    label: theme === 'dark' ? 'Inventory' : 'Store',   emoji: theme === 'dark' ? '💎' : '🛍️' },
+          { id: 'profile',  label: theme === 'dark' ? 'Hunter' : 'Profile',    emoji: theme === 'dark' ? '👤' : '⚙️' },
         ].map(tab => (
           <button
             key={tab.id}

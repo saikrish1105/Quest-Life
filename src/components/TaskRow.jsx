@@ -1,5 +1,5 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react'
-import { CATEGORY_ICONS, CATEGORY_COLORS, TASK_TYPES } from '../models/TaskItem'
+import { CATEGORY_ICONS, CATEGORY_COLORS } from '../models/TaskItem'
 import { streakTier } from '../viewmodels/economyViewModel'
 import HapticManager from '../services/HapticManager'
 
@@ -157,21 +157,18 @@ export default function TaskRow({ task, onComplete, onDelete, onAbandon, pointsE
                 >
                   {task.title}
                 </span>
-                {task.type === TASK_TYPES.SPECIAL && (
-                  <span
-                    className="pill"
-                    style={{
-                      fontSize: '10px', padding: '2px 8px',
-                      background: theme === 'dark' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(212,168,71,0.15)',
-                      color: theme === 'dark' ? '#ef4444' : 'var(--color-gold)',
-                      border: theme === 'dark' ? '1px solid rgba(239, 68, 68, 0.4)' : 'none',
-                      fontWeight: 800,
-                      letterSpacing: '0.05em'
-                    }}
-                  >
-                    {theme === 'dark' ? 'S-RANK' : 'BOSS'}
-                  </span>
-                )}
+                <span
+                  className="pill"
+                  style={{
+                    fontSize: '10px', padding: '2px 8px',
+                    background: `var(--rank-${task.rank?.toLowerCase() || 'e'})`,
+                    color: 'white',
+                    fontWeight: 800,
+                    letterSpacing: '0.05em'
+                  }}
+                >
+                  {task.rank || 'E'} RANK
+                </span>
               </div>
 
               {/* Meta row */}

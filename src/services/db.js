@@ -5,13 +5,14 @@ import { createUserProfile } from '../models/UserProfile'
 // ── Database schema ───────────────────────────────────────────
 export const db = new Dexie('QuestLifeDB')
 
-db.version(2).stores({
-  tasks:        '++id, type, category, lastCompletedDate, createdAt',
-  rewards:      '++id, category, createdAt',
+db.version(3).stores({
+  tasks:        '++id, rank, category, lastCompletedDate, createdAt, isRecurring',
+  rewards:      '++id, category, createdAt, isFixed, isCustom',
   userProfile:  'id',
   pointsLedger: '++id, amount, timestamp, taskId',
-}).upgrade(tx => {
-  // Clear any existing bad indexes if possible
+  dungeons:     '++id, rank, expiresAt',
+}).upgrade(() => {
+  // Upgrade logic if needed
 })
 
 // ── Seed the database on first open ──────────────────────────

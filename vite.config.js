@@ -26,18 +26,19 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        maximumFileSizeToCacheInBytes: 10 * 1024 * 1024, // 10MB to accommodate WebLLM lib
         runtimeCaching: [
           {
-            urlPattern: /^https:\/\/cdn\.jsdelivr\.net\/.*/i,
-            handler: 'CacheFirst',
-            options: { cacheName: 'cdn-cache', expiration: { maxEntries: 50, maxAgeSeconds: 60 * 60 * 24 * 30 } },
+            urlPattern: /^https:\/\/api\.huggingface\.co\/.*/i,
+            handler: 'NetworkFirst',
+            options: { cacheName: 'hf-api-cache', expiration: { maxAgeSeconds: 60 * 60 * 24 * 7 } },
           },
         ],
       },
     }),
   ],
   optimizeDeps: {
-    exclude: ['@xenova/transformers'],
+    exclude: ['@mlc-ai/web-llm'],
   },
   worker: {
     format: 'es',

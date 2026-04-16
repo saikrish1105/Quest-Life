@@ -4,8 +4,8 @@ import GlassCard from '../components/GlassCard'
 import SwipeableCardStack from '../components/onboarding/SwipeableCardStack'
 import AnimatedMeshBackground from '../components/AnimatedMeshBackground'
 import HapticManager from '../services/HapticManager'
-import { db, updateProfile } from '../services/db'
-import { createTask, TASK_TYPES, TASK_CATEGORIES, BASE_VALUES } from '../models/TaskItem'
+import db, { updateProfile } from '../services/db'
+import { createTask, TASK_CATEGORIES, TASK_RANKS } from '../models/TaskItem'
 
 const STEPS = ['mainQuest', 'customMainQuest', 'sideQuests', 'vices', 'difficulty']
 
@@ -120,12 +120,14 @@ export default function OnboardingView({ onComplete }) {
         other: 'Complete main goal',
       }[mainQuestId] || 'Complete main task'
       
+      const rankMap = { 1: TASK_RANKS.E, 2: TASK_RANKS.D, 3: TASK_RANKS.C, 4: TASK_RANKS.B, 5: TASK_RANKS.A }
+      const selectedRank = rankMap[Math.min(3, Math.round(difficulty))] || TASK_RANKS.E
+
       tasks.push(createTask({
         title: mainTaskTitle,
-        type: TASK_TYPES.DAILY,
+        isRecurring: true,
         category: TASK_CATEGORIES.PRODUCTIVITY,
-        baseDifficulty: Math.min(3, difficulty),
-        baseValue: BASE_VALUES[Math.min(3, difficulty)],
+        rank: selectedRank,
       }))
     }
 
@@ -148,12 +150,12 @@ export default function OnboardingView({ onComplete }) {
     sideQuestIds.slice(0, 3).forEach(sideId => {
       const meta = sideQuestTasks[sideId]
       if (meta) {
+        const rankMap = { 1: TASK_RANKS.E, 2: TASK_RANKS.D, 3: TASK_RANKS.C, 4: TASK_RANKS.B, 5: TASK_RANKS.A }
         tasks.push(createTask({
           title: meta.title,
-          type: TASK_TYPES.DAILY,
+          isRecurring: true,
           category: meta.cat,
-          baseDifficulty: meta.diff,
-          baseValue: BASE_VALUES[meta.diff],
+          rank: rankMap[meta.diff] || TASK_RANKS.E,
         }))
       }
     })
@@ -161,10 +163,9 @@ export default function OnboardingView({ onComplete }) {
     // Mindfulness task (always good)
     tasks.push(createTask({
       title: 'Meditation or deep breathing',
-      type: TASK_TYPES.DAILY,
+      isRecurring: true,
       category: TASK_CATEGORIES.MINDFULNESS,
-      baseDifficulty: 1,
-      baseValue: BASE_VALUES[1],
+      rank: TASK_RANKS.E,
     }))
 
     return tasks
@@ -193,10 +194,32 @@ export default function OnboardingView({ onComplete }) {
       await db.tasks.add(task)
     }
 
+    // Generate AI Store Items
+    try {
+      const { generateOnboardingStoreItems } = await import('../services/AIManager')
+      const sideQuestLabels = sideQuests.map(id => {
+        const sq = SIDE_QUESTS.find(x => x.id === id)
+        return sq ? sq.label : id
+      })
+      const onboardingRewards = await generateOnboardingStoreItems(sideQuestLabels, finalMainQuest)
+      if (onboardingRewards && onboardingRewards.length > 0) {
+        for (const r of onboardingRewards) {
+          await db.rewards.add({
+            ...r,
+            cost: r.cost || r.points || 300,
+            baseCost: r.cost || r.points || 300,
+            isFixed: true, 
+            createdAt: new Date().toISOString()
+          })
+        }
+      }
+    } catch (e) {
+      console.error('Store generation failed', e)
+    }
+
     setTimeout(onComplete, 500)
   }
 
-  const diffLabel = DIFFICULTY_LABELS[difficulty]
 
   return (
     <div style={{ minHeight: '100dvh', position: 'relative', display: 'flex', flexDirection: 'column' }}>
@@ -367,9 +390,6 @@ export default function OnboardingView({ onComplete }) {
 
           {/* STEP 4: Difficulty */}
           {currentStep === 'difficulty' && (() => {
-            const displayDiff = Math.abs(difficulty - Math.round(difficulty)) < 0.1 
-              ? Math.round(difficulty) 
-              : difficulty
             const currentLabel = DIFFICULTY_LABELS[Math.round(difficulty)]
 
             return (

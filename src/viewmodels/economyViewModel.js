@@ -29,40 +29,16 @@ export function difficultyMultiplier(difficultyLevel) {
 }
 
 /**
- * Final points for a DAILY task
+ * Final points for any task
  * finalPoints = baseValue × streakMod × freqPenalty × diffMult
  */
-export function calculateDailyPoints(task, userDifficulty) {
+export function calculatePoints(task, userDifficulty) {
   const { baseValue, streak, dailyCompletionCount = 0 } = task
   const sm  = streakModifier(streak)
   const fp  = frequencyPenalty(dailyCompletionCount)
   const dm  = difficultyMultiplier(userDifficulty)
+  
   return Math.max(1, Math.round(baseValue * sm * fp * dm))
-}
-
-/**
- * Time multiplier for Special Tasks
- * +20% per day early, -10% per day late, floored at 0.3
- */
-export function timeMultiplier(deadline) {
-  if (!deadline) return 1.0
-  const now       = new Date()
-  const deadlineD = new Date(deadline)
-  const daysLeft  = Math.ceil((deadlineD - now) / (1000 * 60 * 60 * 24))
-
-  if (daysLeft > 0)  return Math.min(2.5, 1.0 + daysLeft * 0.20)
-  if (daysLeft === 0) return 1.0
-  return Math.max(0.3, 1.0 + daysLeft * 0.10) // daysLeft is negative here
-}
-
-/**
- * Final points for a SPECIAL task (Boss Fight)
- */
-export function calculateSpecialPoints(task, userDifficulty) {
-  const { baseValue } = task
-  const tm = timeMultiplier(task.deadline)
-  const dm = difficultyMultiplier(userDifficulty)
-  return Math.max(100, Math.round(baseValue * tm * dm))
 }
 
 /**

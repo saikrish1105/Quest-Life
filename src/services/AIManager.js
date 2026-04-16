@@ -1,190 +1,191 @@
 // ── AIManager.js ─────────────────────────────────────────────
-// Runs on-device AI via Transformers.js (no API calls ever).
-// Loaded dynamically from CDN so no npm install needed.
-// Uses a zero-shot classifier (MobileBERT MNLI) to categorize tasks
-// and estimate difficulty. Falls back to keyword heuristics while
-// the model downloads or if classification confidence is low.
+// Runs Llama 3.2 1B locally in the browser via WebLLM.
+// Model is cached in IndexedDB after first download (~800MB-1GB).
+// Works completely offline after initialization.
+// Zero API calls, zero external dependencies.
 
-import { TASK_CATEGORIES, BASE_VALUES } from '../models/TaskItem'
+import { CreateMLCEngine } from '@mlc-ai/web-llm'
+import { TASK_CATEGORIES, RANK_POINTS, TASK_RANKS } from '../models/TaskItem'
 
-// Dynamic CDN load — avoids native ONNX build issues
-let _pipeline = null
-async function getPipeline() {
-  if (_pipeline) return _pipeline
-  const mod = await import(
-    /* @vite-ignore */
-    'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/dist/transformers.min.js'
-  )
-  _pipeline = mod.pipeline
-  return _pipeline
-}
+const MODEL_ID = 'Llama-3.2-1B-Instruct-q4f16_1-MLC'
 
-// ── Category labels (what the zero-shot model chooses between) ─
-const CATEGORY_LABELS = [
-  'health and medical',
-  'productivity and work',
-  'learning and education',
-  'creative and artistic',
-  'social and relationships',
-  'fitness and exercise',
-  'mindfulness and mental health',
-  'finance and money',
-  'general task',
-]
-
-const LABEL_TO_CATEGORY = {
-  'health and medical':            TASK_CATEGORIES.HEALTH,
-  'productivity and work':         TASK_CATEGORIES.PRODUCTIVITY,
-  'learning and education':        TASK_CATEGORIES.LEARNING,
-  'creative and artistic':         TASK_CATEGORIES.CREATIVE,
-  'social and relationships':      TASK_CATEGORIES.SOCIAL,
-  'fitness and exercise':          TASK_CATEGORIES.FITNESS,
-  'mindfulness and mental health': TASK_CATEGORIES.MINDFULNESS,
-  'finance and money':             TASK_CATEGORIES.FINANCE,
-  'general task':                  TASK_CATEGORIES.OTHER,
-}
-
-// ── Difficulty keyword heuristics (always-on fallback) ─────────
-const HIGH_DIFFICULTY_KEYWORDS = [
-  'exam', 'project', 'dissertation', 'presentation', 'interview',
-  'deadline', 'report', 'submit', 'finish', 'complete', 'build',
-  'code', 'study all', 'debug', 'fix', 'solve',
-]
-
-const LOW_DIFFICULTY_KEYWORDS = [
-  'drink', 'water', 'walk', 'brush', 'wash', 'read a page',
-  'stretch', 'meditate', 'journal', 'breathe', 'step',
-]
-
-function keywordDifficulty(text) {
-  const lower = text.toLowerCase()
-  if (HIGH_DIFFICULTY_KEYWORDS.some(k => lower.includes(k))) return 4
-  if (LOW_DIFFICULTY_KEYWORDS.some(k => lower.includes(k)))  return 1
-  return 3
-}
-
-function keywordCategory(text) {
-  const lower = text.toLowerCase()
-  if (/gym|run|workout|exercise|walk|swim|yoga|lift|push.?up|squat|cardio/.test(lower)) return TASK_CATEGORIES.FITNESS
-  if (/read|study|learn|course|book|research|review|practice/.test(lower))              return TASK_CATEGORIES.LEARNING
-  if (/code|debug|build|deploy|project|deadline|report|meeting|email/.test(lower))      return TASK_CATEGORIES.PRODUCTIVITY
-  if (/draw|paint|write|music|play|create|design|compose|sketch/.test(lower))           return TASK_CATEGORIES.CREATIVE
-  if (/call|text|visit|meet|friend|family|social|date/.test(lower))                     return TASK_CATEGORIES.SOCIAL
-  if (/meditat|breath|journal|mindful|relax|sleep|nap|therapy/.test(lower))             return TASK_CATEGORIES.MINDFULNESS
-  if (/doctor|medicine|health|hospital|pill|vitamin|diet/.test(lower))                  return TASK_CATEGORIES.HEALTH
-  if (/budget|money|invest|save|finance|pay|bill/.test(lower))                          return TASK_CATEGORIES.FINANCE
-  return TASK_CATEGORIES.OTHER
-}
-
-// ── Model state ───────────────────────────────────────────────
-let classifier = null
-let loadingPromise = null
+// ── Engine state ───────────────────────────────────────────────
+let engine = null
+let initializationPromise = null
 const listeners = new Set()
 
 // ── Progress events for the loading splash ────────────────────
-export function onLoadProgress(fn) { listeners.add(fn); return () => listeners.delete(fn) }
-
-function emitProgress(data) { listeners.forEach(fn => fn(data)) }
-
-// ── Load the model ────────────────────────────────────────────
-export async function loadModel() {
-  if (classifier)       return classifier
-  if (loadingPromise)   return loadingPromise
-
-  emitProgress({ status: 'loading', progress: 0, message: 'Downloading Quest Brain…' })
-
-  loadingPromise = getPipeline().then(async (pipelineFn) => {
-    return pipelineFn(
-      'zero-shot-classification',
-      'Xenova/mobilebert-uncased-mnli',
-      {
-        progress_callback: (info) => {
-          if (info.status === 'downloading') {
-            const pct = info.total > 0 ? Math.round((info.loaded / info.total) * 100) : 0
-            emitProgress({
-              status: 'loading',
-              progress: pct,
-              message: `Downloading Quest Brain… ${pct}%`,
-            })
-          }
-          if (info.status === 'loaded') {
-            emitProgress({ status: 'ready', progress: 100, message: 'Quest Brain ready!' })
-          }
-        },
-      }
-    )
-  }).then(pipe => {
-    classifier = pipe
-    emitProgress({ status: 'ready', progress: 100, message: 'Quest Brain ready!' })
-    return pipe
-  }).catch(err => {
-    loadingPromise = null
-    emitProgress({ status: 'error', progress: 0, message: 'Using offline mode' })
-    console.warn('[AIManager] Model load failed, using heuristics:', err)
-    return null
-  })
-
-  return loadingPromise
+export function onLoadProgress(fn) {
+  listeners.add(fn)
+  return () => listeners.delete(fn)
 }
 
-export function isModelReady() { return !!classifier }
+function emitProgress(data) {
+  listeners.forEach(fn => fn(data))
+}
+
+// ── Initialize the WebLLM engine ──────────────────────────────
+export async function loadModel() {
+  if (engine) return engine
+  if (initializationPromise) return initializationPromise
+
+  emitProgress({ status: 'loading', progress: 0, message: 'Initializing Quest Brain…' })
+
+  initializationPromise = (async () => {
+    try {
+      engine = await CreateMLCEngine(MODEL_ID, {
+        initProgressCallback: (progress) => {
+          const pct = Math.round(progress.progress * 100)
+          emitProgress({
+            status: 'loading',
+            progress: pct,
+            message: `Downloading Quest Brain… ${pct}%`,
+          })
+        },
+      })
+
+      emitProgress({ status: 'ready', progress: 100, message: 'Quest Brain ready!' })
+      return engine
+    } catch (error) {
+      initializationPromise = null
+      emitProgress({
+        status: 'error',
+        progress: 0,
+        message: 'Quest Brain failed to initialize. Check your connection and refresh.',
+      })
+      console.error('[AIManager] Engine initialization failed:', error)
+      throw error
+    }
+  })()
+
+  return initializationPromise
+}
+
+export function isModelReady() {
+  return !!engine
+}
 
 // ── Classify a task ───────────────────────────────────────────
 /**
+ * Uses the LLM to classify a task into a category and estimate its Rank.
  * @param {string} title - task text
- * @returns {{ category: string, baseDifficulty: number, baseValue: number }}
+ * @returns {{ category: string, rank: string, baseValue: number }}
  */
 export async function classifyTask(title) {
-  const fallback = {
-    category: keywordCategory(title),
-    baseDifficulty: keywordDifficulty(title),
-    baseValue: BASE_VALUES[keywordDifficulty(title)],
+  if (!engine) {
+    throw new Error('Quest Brain not ready. Ensure model is loaded before classifying.')
   }
 
-  if (!classifier) return fallback
-
   try {
-    const result = await classifier(title, CATEGORY_LABELS, { multi_label: false })
-    const topLabel = result.labels[0]
-    const topScore = result.scores[0]
+    const prompt = `You are a task rank classifier for an RPG life tracker. 
+Ranks: 
+S: Life-changing / Massive (Final project, marathon, moving house)
+A: Significant effort / Hard (Study 4h, deep clean, heavy workout)
+B: Moderate effort (50 pushups, cook dinner, work 2h)
+C: Routine / Minor (Laundry, 15m read, grocery shop)
+D: Low effort / Tiny (Wash face, 5m stretch, reply to email)
+E: Trivial / Micro (Drink water, take vitamins, brush teeth)
 
-    // Low confidence — use heuristic difficulty but AI category
-    const category = topScore > 0.35 ? (LABEL_TO_CATEGORY[topLabel] ?? TASK_CATEGORIES.OTHER) : fallback.category
+Task: "${title}"
 
-    // Difficulty: score above 0.7 → boost or lower difficulty slightly
-    let diff = keywordDifficulty(title)
-    if (category === TASK_CATEGORIES.FITNESS || category === TASK_CATEGORIES.PRODUCTIVITY) diff = Math.min(5, diff + 1)
-    if (category === TASK_CATEGORIES.MINDFULNESS) diff = Math.max(1, diff - 1)
+Respond with ONLY a JSON object:
+{
+  "category": "health"|"productivity"|"learning"|"creative"|"social"|"fitness"|"mindfulness"|"finance"|"other",
+  "rank": "S"|"A"|"B"|"C"|"D"|"E"
+}
+`
 
-    return {
-      category,
-      baseDifficulty: diff,
-      baseValue: BASE_VALUES[diff],
+    const response = await engine.chat.completions.create({
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a precise JSON-only classifier. Always respond with valid JSON only.',
+        },
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
+      temperature: 0.1,
+      max_tokens: 100,
+    })
+
+    const responseText = response.choices[0].message.content.trim()
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/)
+    if (!jsonMatch) throw new Error('Invalid response format')
+
+    const classification = JSON.parse(jsonMatch[0])
+    const rank = classification.rank.toUpperCase()
+    
+    // Map category string to TASK_CATEGORIES constant
+    const categoryMap = {
+      health: TASK_CATEGORIES.HEALTH,
+      productivity: TASK_CATEGORIES.PRODUCTIVITY,
+      learning: TASK_CATEGORIES.LEARNING,
+      creative: TASK_CATEGORIES.CREATIVE,
+      social: TASK_CATEGORIES.SOCIAL,
+      fitness: TASK_CATEGORIES.FITNESS,
+      mindfulness: TASK_CATEGORIES.MINDFULNESS,
+      finance: TASK_CATEGORIES.FINANCE,
+      other: TASK_CATEGORIES.OTHER,
     }
-  } catch {
-    return fallback
+
+    const category = categoryMap[classification.category] || TASK_CATEGORIES.OTHER
+    const baseValue = RANK_POINTS[rank] || 100
+
+    return { category, rank, baseValue }
+  } catch (error) {
+    console.error('[AIManager] Classification failed:', error)
+    return { category: TASK_CATEGORIES.OTHER, rank: 'D', baseValue: 100 }
   }
 }
 
+
 // ── Validate task semantic meaning ────────────────────────────
+/**
+ * Uses the LLM to check if a task description is meaningful.
+ * @param {string} title - task text
+ * @returns {boolean} true if the task is valid
+ */
 export async function validateTask(title) {
   const trimmed = title.trim()
+
+  // Basic format checks
   if (trimmed.length < 3) return false
-  if (/(.)\1{4,}/.test(trimmed)) return false // e.g. "aaaaa"
+  if (/(.)\\1{4,}/.test(trimmed)) return false // e.g. "aaaaa"
   if (!/^[\w\s.,'?!-]+$/.test(trimmed)) return false // mostly symbols
 
-  if (!classifier) return true // fallback if model missing
+  if (!engine) {
+    throw new Error('Quest Brain not ready. Ensure model is loaded before validating.')
+  }
 
   try {
-    const result = await classifier(trimmed, ['a meaningful goal or task', 'random nonsense gibberish'], { multi_label: false })
-    const topLabel = result.labels[0]
-    
-    if (topLabel === 'random nonsense gibberish' && result.scores[0] > 0.6) {
-      return false
-    }
-    return true
-  } catch {
-    return true
+    const prompt = `Task: "${trimmed}"
+Is this an actionable goal, habit, or chore?
+Example valid tasks: "100 pushups", "Drink water", "Code for 1 hour", "Clean room".
+Example invalid: "asdfghj", "!!!!!!!!", "123456".
+Respond with "yes" or "no":`
+
+    const response = await engine.chat.completions.create({
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a task validator for an RPG life tracker. Respond only with "yes" or "no".',
+        },
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
+      temperature: 0,
+      max_tokens: 5,
+    })
+
+    const responseText = response.choices[0].message.content.trim().toLowerCase()
+    return responseText.includes('yes')
+  } catch (error) {
+    console.error('[AIManager] Validation failed:', error)
+    throw error
   }
 }
 
@@ -220,7 +221,7 @@ export function generateCompletionQuip(taskTitle, points, userProfile) {
  */
 export function generateStoreSpecials(completedTasks, userProfile) {
   const specials = []
-  const { sideQuests = [], vices = [], difficulty = 3 } = userProfile || {}
+  const { sideQuests = [], vices = [] } = userProfile || {}
 
   const discountFactor = 0.65 // specials are discounted
 
@@ -294,4 +295,130 @@ export function generateStoreSpecials(completedTasks, userProfile) {
   }
 
   return specials.slice(0, 3).map(s => ({ ...s, createdAt: new Date().toISOString() }))
+}
+
+/**
+ * AI suggests points for a custom reward.
+ */
+export async function suggestRewardPoints(rewardName) {
+  if (!engine) return 300
+  try {
+    const prompt = `How many points should it cost to redeem this reward: "${rewardName}"?
+Base your scale on: 
+- 50 pts: small snack, 10m phone use
+- 200 pts: 1 hour gaming, dessert
+- 1000 pts: a full day off, buying a new game
+Respond with ONLY JSON: {"points": number, "rank": "S"|"A"|"B"|"C"|"D"|"E"}`
+    
+    const response = await engine.chat.completions.create({
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.3,
+      max_tokens: 50,
+    })
+    const jsonMatch = response.choices[0].message.content.match(/\{[\s\S]*\}/)
+    return JSON.parse(jsonMatch[0]).points
+  } catch { return 300 }
+}
+
+/**
+ * Generates 1 Dungeon with 2 Rewards and 3 Tasks based on user profile.
+ */
+export async function generateDungeon(profile) {
+  const difficultySetting = profile?.difficulty || 3
+  const mainQuest = profile?.mainQuest || 'general'
+  const sideQuests = profile?.sideQuests || []
+
+  // Decide Rank based on difficulty (1-5)
+  const roll = Math.random() * 100
+  let rank = 'E'
+  if (difficultySetting >= 5) {
+    if (roll > 70) rank = 'S'; else if (roll > 40) rank = 'A'; else rank = 'B'
+  } else if (difficultySetting >= 3) {
+    if (roll > 90) rank = 'S'; else if (roll > 75) rank = 'A'; else if (roll > 50) rank = 'B'; else rank = 'C'
+  } else {
+    if (roll > 95) rank = 'A'; else if (roll > 80) rank = 'B'; else if (roll > 60) rank = 'C'; else rank = 'D'
+  }
+
+  const contextLine = sideQuests.length > 0
+    ? `User's focus areas: ${mainQuest}, ${sideQuests.join(', ')}`
+    : `User's focus area: ${mainQuest}`
+
+  const prompt = `Generate a themed Dungeon (Surprise Challenge) for an RPG life tracker.
+Rank: ${rank}
+${contextLine}
+
+Requirements:
+1. A cool Dungeon name (Solo Leveling style) RELEVANT to the user's focus areas
+2. 2 Rewards fitting the user's interests (one small, one large)
+3. 3 real-life Tasks the user must do to clear the dungeon — they must be specific to the user's focus areas, not generic. Match difficulty to Rank ${rank}.
+
+Respond with ONLY valid JSON (no markdown):
+{
+  "name": "...",
+  "rank": "${rank}",
+  "rewards": [{"name": "...", "points": number, "emoji": "..."}],
+  "tasks": [{"title": "...", "rank": "${rank}", "category": "..."}]
+}`
+
+  // Fallback dungeon if AI is not loaded
+  if (!engine) {
+    const fallbackTasks = sideQuests.length > 0
+      ? sideQuests.slice(0, 3).map((sq, i) => ({
+          title: `Complete a ${sq} challenge`,
+          rank,
+          category: sq,
+          completed: false,
+        }))
+      : [
+          { title: `30-minute deep work session`, rank, category: 'productivity', completed: false },
+          { title: `No-phone focus block`, rank, category: 'productivity', completed: false },
+          { title: `Plan your top 3 priorities`, rank, category: 'productivity', completed: false },
+        ]
+    return {
+      name: `${mainQuest.charAt(0).toUpperCase() + mainQuest.slice(1)} Trial`,
+      rank,
+      rewards: [
+        { name: 'Gold Coin', points: 50, emoji: '🪙' },
+        { name: 'XP Surge', points: 200, emoji: '⚡' },
+      ],
+      tasks: fallbackTasks,
+    }
+  }
+
+  try {
+    const response = await engine.chat.completions.create({
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.7,
+      max_tokens: 500,
+    })
+    const jsonMatch = response.choices[0].message.content.match(/\{[\s\S]*\}/)
+    const parsed = JSON.parse(jsonMatch[0])
+    return parsed
+  } catch (error) {
+    console.error('Dungeon generation failed', error)
+    return null
+  }
+}
+
+/**
+ * Generates 5 initial store items during onboarding.
+ */
+export async function generateOnboardingStoreItems(sideQuests, mainQuest) {
+  if (!engine) return []
+  const prompt = `Generate 5 personalized rewards for a habit tracker store.
+User Interests: ${sideQuests.join(', ')}
+Main Goal: ${mainQuest}
+
+Respond with ONLY JSON array:
+[{"name": "...", "cost": number, "emoji": "...", "category": "..."}]`
+
+  try {
+    const response = await engine.chat.completions.create({
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.7,
+      max_tokens: 500,
+    })
+    const jsonMatch = response.choices[0].message.content.match(/\[[\s\S]*\]/)
+    return JSON.parse(jsonMatch[0])
+  } catch { return [] }
 }

@@ -1,5 +1,21 @@
 // ── TaskItem model ────────────────────────────────────────────
-export const TASK_TYPES = { DAILY: 'daily', SPECIAL: 'special' }
+export const TASK_RANKS = {
+  S: 'S',
+  A: 'A',
+  B: 'B',
+  C: 'C',
+  D: 'D',
+  E: 'E',
+}
+
+export const RANK_POINTS = {
+  E: 40,
+  D: 80,
+  C: 150,
+  B: 300,
+  A: 700,
+  S: 1200,
+}
 
 export const TASK_CATEGORIES = {
   HEALTH:        'health',
@@ -14,15 +30,15 @@ export const TASK_CATEGORIES = {
 }
 
 export const CATEGORY_ICONS = {
-  health: '',
-  productivity: '',
-  learning: '',
-  creative: '',
-  social: '',
-  fitness: '',
-  mindfulness: '',
-  finance: '',
-  other: '',
+  health: '🏥',
+  productivity: '⚒️',
+  learning: '📚',
+  creative: '🎨',
+  social: '🤝',
+  fitness: '⚡',
+  mindfulness: '🧘',
+  finance: '💰',
+  other: '✨',
 }
 
 export const CATEGORY_COLORS = {
@@ -37,36 +53,34 @@ export const CATEGORY_COLORS = {
   other: '#7A7A7A',
 }
 
-// Base values by difficulty level (1–5)
+// Base values by difficulty level (1–5) - DEPRECATED in favor of RANK_POINTS
 export const BASE_VALUES = { 1: 50, 2: 100, 3: 200, 4: 400, 5: 750 }
-
-// Special task base value multiplier
-export const SPECIAL_TASK_BASE = 1500
 
 /**
  * @typedef {Object} TaskItem
  * @property {number}  id
  * @property {string}  title
- * @property {string}  type          - 'daily' | 'special'
+ * @property {string}  rank          - 'S' | 'A' | 'B' | 'C' | 'D' | 'E'
+ * @property {boolean} isRecurring   - true if it restarts daily, false for one-offs
  * @property {string}  category
- * @property {number}  baseDifficulty - 1–5
  * @property {number}  baseValue
  * @property {number}  streak         - consecutive completions
  * @property {string|null} lastCompletedDate - ISO date string (YYYY-MM-DD)
- * @property {string|null} deadline   - ISO date string for special tasks
+ * @property {string|null} deadline   - ISO date string for one-off tasks (optional)
  * @property {number}  missedDays
  * @property {boolean} penaltyActive
  * @property {boolean} isCompleted    - current session flag
  * @property {string}  createdAt      - ISO timestamp
  */
 export function createTask(overrides = {}) {
+  const rank = overrides.rank || TASK_RANKS.D
   return {
     id: undefined,
     title: '',
-    type: TASK_TYPES.DAILY,
+    rank: rank,
+    isRecurring: true,
     category: TASK_CATEGORIES.OTHER,
-    baseDifficulty: 3,
-    baseValue: BASE_VALUES[3],
+    baseValue: RANK_POINTS[rank],
     streak: 0,
     lastCompletedDate: null,
     deadline: null,

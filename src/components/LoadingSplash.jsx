@@ -2,13 +2,13 @@ import React, { useEffect, useState } from 'react'
 import AnimatedMeshBackground from './AnimatedMeshBackground'
 
 /**
- * LoadingSplash — shown on first launch while MobileBERT downloads.
+ * LoadingSplash — shown on first launch while Llama 3.2 1B downloads via WebLLM.
  * Subscribes to AIManager progress events.
  * onDone() is called once model is ready OR after timeout.
  */
 export default function LoadingSplash({ onDone }) {
   const [progress, setProgress] = useState(0)
-  const [message, setMessage]   = useState('Waking up Quest Brain…')
+  const [message, setMessage]   = useState('Initializing Quest Brain…')
   const [phase, setPhase]       = useState('loading') // loading | ready
 
   useEffect(() => {
@@ -23,8 +23,8 @@ export default function LoadingSplash({ onDone }) {
         }
         if (status === 'error') {
           setPhase('ready')
-          setMessage('Using offline mode — Quest Brain ready!')
-          setTimeout(onDone, 1500)
+          setMessage('⚠️ Quest Brain failed to load. Check your connection and refresh.')
+          setTimeout(onDone, 2000)
         }
       })
 
@@ -32,11 +32,11 @@ export default function LoadingSplash({ onDone }) {
       return unsub
     })
 
-    // Failsafe: if nothing happens in 30s, proceed anyway
+    // Failsafe: if nothing happens in 30s, show timeout warning
     const failsafe = setTimeout(() => {
       setPhase('ready')
-      setMessage('Quest Brain ready!')
-      setTimeout(onDone, 800)
+      setMessage('⚠️ Connection timeout. Please refresh the page.')
+      setTimeout(onDone, 2000)
     }, 30000)
 
     return () => clearTimeout(failsafe)
@@ -82,7 +82,7 @@ export default function LoadingSplash({ onDone }) {
                 width: phase === 'ready' ? '100%' : `${Math.max(5, progress)}%`,
                 transition: 'width 0.6s var(--ease-smooth)',
                 background: phase === 'ready'
-                  ? 'linear-gradient(90deg, var(--color-sage), var(--color-sage-light))'
+                  ? 'linear-gradient(90deg, var(--color-sage), var(--color-sage))'
                   : 'linear-gradient(90deg, var(--color-terracotta), var(--color-gold))',
               }}
             />
@@ -108,16 +108,15 @@ export default function LoadingSplash({ onDone }) {
         {phase === 'loading' && (
           <div
             className="glass-card"
-            style={{ marginTop: '32px', padding: '16px', textAlign: 'left' }}
+            style={{
+              marginTop: '24px',
+              padding: '16px 12px',
+              fontSize: '12px',
+              color: 'var(--color-charcoal-soft)',
+              lineHeight: 1.5,
+            }}
           >
-            <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: 'var(--color-charcoal)' }}>
-              🤖 First-time setup
-            </div>
-            <div className="caption" style={{ lineHeight: 1.6 }}>
-              Downloading a small AI model (~45MB) to your device.
-              This only happens once — all AI runs privately on your phone.
-              No data ever leaves your device.
-            </div>
+            <strong>First launch only:</strong> The Quest Brain (~1GB) downloads and caches in your browser. After this, it works completely offline. 🚀
           </div>
         )}
       </div>
