@@ -7,9 +7,9 @@ import ConfettiOverlay from '../components/ConfettiOverlay'
 import db, { getProfile, updateProfile, addPoints } from '../services/db'
 import HapticManager from '../services/HapticManager'
 import { calculatePoints, nextStreak, missPenalty } from '../viewmodels/economyViewModel'
-import { createTask, TASK_RANKS } from '../models/TaskItem'
-import { todayStr } from '../services/db'
 import { getRankFromPoints, getCompletionQuip } from '../services/QuestUtils'
+import { createTask, TASK_RANKS, TASK_CATEGORIES } from '../models/TaskItem'
+import { todayStr } from '../services/db'
 
 export default function HomeView({ profile, onPointsChange, theme }) {
   const [tasks, setTasks]           = useState([])
@@ -91,7 +91,7 @@ export default function HomeView({ profile, onPointsChange, theme }) {
     const p      = await getProfile()
     const streak = task.isRecurring ? nextStreak(task) : 0
     
-    const pts = calculatePoints({ ...task, streak }, p?.difficulty ?? 3)
+    const pts = task.baseValue
 
     await db.tasks.update(task.id, {
       streak,
@@ -128,25 +128,25 @@ export default function HomeView({ profile, onPointsChange, theme }) {
       alert("Quest title is too short. Try something more actionable!")
       return
     }
-    setClassifying(true)
+    setIsSaving(true)
     try {
-      const classification = await classifyTask(newTask.title)
       const task = createTask({
         title: newTask.title.trim(),
-        rank: classification.rank,
+        rank: TASK_RANKS.D,
+        baseValue: parseInt(newTask.points) || 150,
         isRecurring: newTask.isRecurring,
-        category: classification.category,
+        category: TASK_CATEGORIES.OTHER,
         deadline: !newTask.isRecurring && newTask.deadline ? newTask.deadline : null,
       })
 
       await db.tasks.add(task)
-      setClassifying(false)
+      setIsSaving(false)
       setAddSheet(false)
       setNewTask({ title: '', isRecurring: true, deadline: '' })
       HapticManager.medium()
       loadTasks()
     } catch (_err) {
-      setClassifying(false)
+      setIsSaving(false)
       alert("Unable to save quest. Try again!")
     }
   }, [newTask, loadTasks])
@@ -175,7 +175,7 @@ export default function HomeView({ profile, onPointsChange, theme }) {
           <TaskRow
             key={task.id}
             task={task}
-            pointsEarned={calculatePoints(task, profile?.difficulty ?? 3)}
+            pointsEarned={task.baseValue}
             theme={theme}
             onComplete={handleComplete}
             onDelete={handleDelete}
@@ -248,6 +248,15 @@ export default function HomeView({ profile, onPointsChange, theme }) {
           style={{ marginBottom: '16px' }}
         />
         
+        <input
+          type="number"
+          className="input-field"
+          placeholder="Points (e.g. 150)"
+          value={newTask.points}
+          onChange={e => setNewTask(p => ({ ...p, points: e.target.value }))}
+          style={{ marginBottom: '16px' }}
+        />
+        
         <div className="flex-between" style={{ marginBottom: '20px' }}>
           <span className="label">Daily Recurring?</span>
           <button 
@@ -267,8 +276,8 @@ export default function HomeView({ profile, onPointsChange, theme }) {
           <input type="date" className="input-field" value={newTask.deadline} onChange={e => setNewTask(p => ({ ...p, deadline: e.target.value }))} style={{ marginBottom: '16px' }} />
         )}
 
-        <button className="btn-primary" onClick={handleAddTask} disabled={classifying || !newTask.title.trim()}>
-          {classifying ? 'Saving quest...' : 'Confirm Quest'}
+        <button className="btn-primary" onClick={handleAddTask} disabled={isSaving || !newTask.title.trim()}>
+          {isSaving ? 'Saving quest...' : 'Confirm Quest'}
         </button>
       </div>
     </div>

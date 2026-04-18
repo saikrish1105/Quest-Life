@@ -23,9 +23,7 @@ export default function OnboardingView({ onComplete }) {
   const [mainQuest, setMainQuest]   = useState(null)
   const [customMainValue, setCustomMainValue] = useState('')
   const [sideQuests, setSideQuests] = useState([])
-  const [customSideValue, setCustomSideValue] = useState('')
   const [vices, setVices]           = useState([])
-  const [customViceValue, setCustomViceValue] = useState('')
   const [difficulty, setDifficulty] = useState(3)
   const [cardIndex, setCardIndex]   = useState(0)
   const [saving, setSaving]         = useState(false)
@@ -77,28 +75,9 @@ export default function OnboardingView({ onComplete }) {
     setSideQuests(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
   }
 
-  const addCustomSideQuest = () => {
-    if (customSideValue.trim()) {
-      const id = 'custom_' + Date.now()
-      SIDE_QUESTS.push({ id, label: customSideValue.trim() })
-      toggleSideQuest(id)
-      setCustomSideValue('')
-    }
-  }
-
-  // ── Step 3: Vices multi-select ────────────────────────────
   const toggleVice = (id) => {
     HapticManager.light()
     setVices(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
-  }
-
-  const addCustomVice = () => {
-    if (customViceValue.trim()) {
-      const id = 'custom_vice_' + Date.now()
-      VICES.push({ id, label: customViceValue.trim() })
-      toggleVice(id)
-      setCustomViceValue('')
-    }
   }
 
   const nextStep = () => {
@@ -106,71 +85,7 @@ export default function OnboardingView({ onComplete }) {
     if (step < STEPS.length - 1) setStep(s => s + 1)
   }
 
-  // ── Generate starter tasks based on profile ──────────────
-  const generateStarterTasks = (mainQuestId, sideQuestIds, difficulty) => {
-    const tasks = []
-    
-    // Starter task for main quest
-    const mainQuestMeta = MAIN_QUESTS.find(q => q.id === mainQuestId)
-    if (mainQuestMeta) {
-      const mainTaskTitle = {
-        student: 'Complete today\'s assignment',
-        worker: 'Finish top priority at work',
-        freelancer: 'Work on client project',
-        creator: 'Create content',
-        other: 'Complete main goal',
-      }[mainQuestId] || 'Complete main task'
-      
-      const rankMap = { 1: TASK_RANKS.E, 2: TASK_RANKS.D, 3: TASK_RANKS.C, 4: TASK_RANKS.B, 5: TASK_RANKS.A }
-      const selectedRank = rankMap[Math.min(3, Math.round(difficulty))] || TASK_RANKS.E
 
-      tasks.push(createTask({
-        title: mainTaskTitle,
-        isRecurring: true,
-        category: TASK_CATEGORIES.PRODUCTIVITY,
-        rank: selectedRank,
-      }))
-    }
-
-    // Starter tasks for side quests
-    const sideQuestTasks = {
-      gym: { title: 'Hit the gym', cat: TASK_CATEGORIES.FITNESS, diff: 3 },
-      music: { title: 'Practice music', cat: TASK_CATEGORIES.CREATIVE, diff: 2 },
-      reading: { title: 'Read a chapter', cat: TASK_CATEGORIES.LEARNING, diff: 1 },
-      art: { title: 'Create something', cat: TASK_CATEGORIES.CREATIVE, diff: 3 },
-      gaming: { title: 'Game session', cat: TASK_CATEGORIES.OTHER, diff: 2 },
-      cooking: { title: 'Cook a meal', cat: TASK_CATEGORIES.HEALTH, diff: 2 },
-      writing: { title: 'Write something', cat: TASK_CATEGORIES.CREATIVE, diff: 2 },
-      sports: { title: 'Play sports', cat: TASK_CATEGORIES.FITNESS, diff: 3 },
-      travel: { title: 'Plan travel', cat: TASK_CATEGORIES.OTHER, diff: 2 },
-      meditation: { title: 'Meditate', cat: TASK_CATEGORIES.MINDFULNESS, diff: 1 },
-      language: { title: 'Learn language', cat: TASK_CATEGORIES.LEARNING, diff: 2 },
-      photography: { title: 'Take photos', cat: TASK_CATEGORIES.CREATIVE, diff: 2 },
-    }
-
-    sideQuestIds.slice(0, 3).forEach(sideId => {
-      const meta = sideQuestTasks[sideId]
-      if (meta) {
-        const rankMap = { 1: TASK_RANKS.E, 2: TASK_RANKS.D, 3: TASK_RANKS.C, 4: TASK_RANKS.B, 5: TASK_RANKS.A }
-        tasks.push(createTask({
-          title: meta.title,
-          isRecurring: true,
-          category: meta.cat,
-          rank: rankMap[meta.diff] || TASK_RANKS.E,
-        }))
-      }
-    })
-
-    // Mindfulness task (always good)
-    tasks.push(createTask({
-      title: 'Meditation or deep breathing',
-      isRecurring: true,
-      category: TASK_CATEGORIES.MINDFULNESS,
-      rank: TASK_RANKS.E,
-    }))
-
-    return tasks
-  }
 
   const handleFinish = async () => {
     if (saving) return
@@ -189,37 +104,16 @@ export default function OnboardingView({ onComplete }) {
       lastActiveDate: new Date().toISOString().split('T')[0] 
     })
 
-    // Generate and save starter tasks based on profile
-    const starterTasks = generateStarterTasks(finalMainQuest, sideQuests, difficulty)
-    for (const task of starterTasks) {
-      await db.tasks.add(task)
-    }
 
-    // Seed Initial Rewards based on Vices and Side Quests
+
+    // Seed Initial Rewards based on Vices
     try {
       const initialRewards = [];
       
-      // Pick 2 items from each vice
-      vices.slice(0, 3).forEach(viceId => {
+      // Pick all items from each vice selected
+      vices.forEach(viceId => {
         if (STORE_DEFAULTS.vices[viceId]) {
-          initialRewards.push(...STORE_DEFAULTS.vices[viceId].slice(0, 2));
-        }
-      });
-
-      // Pick 1 item from each side quest
-      sideQuests.slice(0, 3).forEach(sqId => {
-        const dataId = {
-          gym: 'Gym_Fitness',
-          coding: 'Coding',
-          music: 'Guitar',
-          education: 'Education',
-          singing: 'Singing',
-          sports: 'Sport',
-          reading: 'Reading',
-          gaming: 'Gaming'
-        }[sqId] || sqId;
-        if (STORE_DEFAULTS.sideQuests[dataId]) {
-          initialRewards.push(...STORE_DEFAULTS.sideQuests[dataId].slice(0, 1));
+          initialRewards.push(...STORE_DEFAULTS.vices[viceId]);
         }
       });
 
@@ -311,11 +205,7 @@ export default function OnboardingView({ onComplete }) {
             <>
               {/* Dynamic Filtering based on mainQuest */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', maxHeight: '280px', overflowY: 'auto', marginBottom: '14px' }}>
-                {SIDE_QUESTS.filter(sq => {
-                  if (mainQuest === 'student') return ['gym', 'music', 'reading', 'gaming', 'language'].includes(sq.id) || sq.id.startsWith('custom_')
-                  if (mainQuest === 'worker') return ['gym', 'reading', 'travel', 'meditation', 'cooking'].includes(sq.id) || sq.id.startsWith('custom_')
-                  return true
-                }).map(sq => {
+                {SIDE_QUESTS.map(sq => {
                   const selected = sideQuests.includes(sq.id)
                   return (
                     <button
@@ -339,18 +229,6 @@ export default function OnboardingView({ onComplete }) {
                   )
                 })}
               </div>
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
-                <input
-                  className="input-field"
-                  placeholder="Type your own..."
-                  value={customSideValue}
-                  onChange={e => setCustomSideValue(e.target.value)}
-                  style={{ flex: 1 }}
-                />
-                <button className="btn-secondary" onClick={addCustomSideQuest} style={{ whiteSpace: 'nowrap' }}>
-                  Add
-                </button>
-              </div>
               <button className="btn-primary" onClick={nextStep}>
                 Continue {sideQuests.length > 0 ? `(${sideQuests.length} selected)` : ''}
               </button>
@@ -361,11 +239,7 @@ export default function OnboardingView({ onComplete }) {
           {currentStep === 'vices' && (
             <>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', maxHeight: '280px', overflowY: 'auto', marginBottom: '14px' }}>
-                {VICES.filter(v => {
-                  if (mainQuest === 'student') return ['binge_tv', 'gaming', 'social_media', 'napping'].includes(v.id) || v.id.startsWith('custom_')
-                  if (mainQuest === 'worker') return ['coffee', 'junk_food', 'binge_tv', 'procrastination'].includes(v.id) || v.id.startsWith('custom_')
-                  return true
-                }).map(v => {
+                {VICES.map(v => {
                   const selected = vices.includes(v.id)
                   return (
                     <button
@@ -388,18 +262,6 @@ export default function OnboardingView({ onComplete }) {
                     </button>
                   )
                 })}
-              </div>
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
-                <input
-                  className="input-field"
-                  placeholder="Type your own..."
-                  value={customViceValue}
-                  onChange={e => setCustomViceValue(e.target.value)}
-                  style={{ flex: 1 }}
-                />
-                <button className="btn-secondary" onClick={addCustomVice} style={{ whiteSpace: 'nowrap' }}>
-                  Add
-                </button>
               </div>
               <button className="btn-primary" onClick={nextStep}>
                 Continue {vices.length > 0 ? `(${vices.length} selected)` : ''}

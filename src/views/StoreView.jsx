@@ -15,6 +15,7 @@ export default function StoreView({ points, onPointsChange }) {
   
   const [showAddSheet, setAddSheet]       = useState(false)
   const [customName, setCustomName]       = useState('')
+  const [customCost, setCustomCost]       = useState('500')
   const [loading, setLoading]             = useState(true)
   const [suggesting, setSuggesting]       = useState(false)
   const [calculating, setCalculating]     = useState(false)
@@ -28,10 +29,8 @@ export default function StoreView({ points, onPointsChange }) {
       ])
       
       const fixed = allRewards.filter(r => r.isFixed || r.isCustom)
-      const specials = allRewards.filter(r => !r.isFixed && !r.isCustom)
       
       setFixedRewards(fixed)
-      setAiSpecials(specials)
       setInflated(inf)
     } catch (_err) {
       console.error('Error loading store data')
@@ -64,15 +63,18 @@ export default function StoreView({ points, onPointsChange }) {
     }
   }, [loadAll, onPointsChange])
 
+  const handleDeleteReward = async (e, reward) => {
+    e.stopPropagation()
+    await db.rewards.delete(reward.id)
+    loadAll()
+  }
+
   const handleAddReward = async () => {
     if (!customName.trim()) return
     setSuggesting(true)
     setCalculating(true)
     try {
-      // Manual point entry logic can be added here, but for now we'll use a default or prompt
-      // For simplicity, we'll prompt for points or use 500
-      const pointStr = prompt("Enter point cost for this reward:", "500")
-      const cost = parseInt(pointStr) || 500
+      const cost = parseInt(customCost) || 500
       
       const reward = {
         name: customName.trim(),
@@ -110,14 +112,20 @@ export default function StoreView({ points, onPointsChange }) {
               <div className="caption" style={{ color: 'var(--color-gold)' }}>{cost} points</div>
             </div>
           </div>
-          <button 
-            className="btn-primary" 
-            onClick={() => handleRedeem(reward)}
-            disabled={!canAfford}
-            style={{ width: 'auto', padding: '8px 16px', fontSize: '14px', background: isSuccess ? 'var(--color-sage)' : '' }}
-          >
-            {isSuccess ? 'Redeemed' : canAfford ? 'Redeem' : 'Locked'}
-          </button>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <button 
+              className="btn-primary" 
+              onClick={() => handleRedeem(reward)}
+              disabled={!canAfford}
+              style={{ width: 'auto', padding: '8px 16px', fontSize: '14px', background: isSuccess ? 'var(--color-sage)' : '' }}
+            >
+              {isSuccess ? 'Redeemed' : canAfford ? 'Redeem' : 'Locked'}
+            </button>
+            <button
+              onClick={(e) => handleDeleteReward(e, reward)}
+              style={{ background: 'transparent', border: '1px solid var(--text-dim)', color: 'var(--text-dim)', padding: '6px 10px', borderRadius: '8px', fontSize: '12px' }}
+            >X</button>
+          </div>
         </div>
       </GlassCard>
     )
@@ -142,12 +150,8 @@ export default function StoreView({ points, onPointsChange }) {
           </GlassCard>
         )}
 
-        <div className="section-header"><span className="label">Daily Specials</span></div>
-        {aiSpecials.length === 0 && !loading && <div className="caption" style={{ textAlign: 'center', padding: '20px' }}>No specials available.</div>}
-        {aiSpecials.map(r => <RewardCard key={r.id} reward={r} />)}
-
         <div style={{ marginTop: '24px' }}>
-          <div className="section-header"><span className="label">Your Rewards</span></div>
+          <div className="section-header"><span className="label">Store Rewards</span></div>
           {fixedRewards.map(r => <RewardCard key={r.id} reward={r} />)}
         </div>
 
@@ -167,6 +171,16 @@ export default function StoreView({ points, onPointsChange }) {
               placeholder="E.g., Sushi Night, 1hr Gaming"
               value={customName}
               onChange={e => setCustomName(e.target.value)}
+            />
+          </div>
+          <div style={{ flex: 1 }}>
+            <div className="caption" style={{ marginBottom: '6px' }}>Points cost?</div>
+            <input
+              type="number"
+              className="input-field"
+              placeholder="500"
+              value={customCost}
+              onChange={e => setCustomCost(e.target.value)}
             />
           </div>
         </div>

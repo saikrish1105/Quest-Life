@@ -108,7 +108,7 @@ export default function DungeonView({ profile, theme, onPointsChange }) {
         setDungeon(active)
       } else {
         // Generate new dungeon
-        const newDungeonData = await generateDungeon(profile)
+        const newDungeonData = generateLocalDungeon(profile)
         if (newDungeonData) {
           const newDungeon = {
             ...newDungeonData,

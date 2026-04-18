@@ -1,24 +1,44 @@
 export const STORE_DEFAULTS = {
   vices: {
     binge_tv: [
-      { name: "Episode Unlock", cost: 200, emoji: "", category: "entertainment" },
-      { name: "Movie Night", cost: 500, emoji: "", category: "entertainment" },
-      { name: "Season Binge Marathon", cost: 1200, emoji: "", category: "entertainment" }
-    ],
-    junk_food: [
-      { name: "Cheat Snack", cost: 150, emoji: "", category: "food" },
-      { name: "Fast Food Feast", cost: 600, emoji: "", category: "food" },
-      { name: "The Big Cheat Day", cost: 1500, emoji: "", category: "food" }
-    ],
-    gaming: [
-      { name: "1-Hour Session", cost: 300, emoji: "", category: "gaming" },
-      { name: "Indie Game Purchase", cost: 1000, emoji: "", category: "gaming" },
-      { name: "All-Night Gaming Marathon", cost: 2500, emoji: "", category: "gaming" }
+      { name: "Unlock 1 guilt-free episode of a current show", cost: 300, emoji: "", category: "entertainment" },
+      { name: "Movie night pass (Popcorn and zero interruptions)", cost: 800, emoji: "", category: "entertainment" },
+      { name: "The Couch Potato Pass: 4 solid hours of unrestricted bingeing", cost: 1500, emoji: "", category: "entertainment" }
     ],
     social_media: [
-      { name: "30-Min Doomscroll", cost: 150, emoji: "", category: "social" },
-      { name: "1-Hour Guilt-Free Browsing", cost: 400, emoji: "", category: "social" },
-      { name: "Full Digital Detox Reward", cost: 800, emoji: "", category: "social" }
+      { name: "15 minutes of mindless Doomscrolling", cost: 150, emoji: "", category: "social" },
+      { name: "30-minute deep dive into YouTube/Reddit rabbit holes", cost: 400, emoji: "", category: "social" },
+      { name: "1 hour of completely unrestricted TikTok/Reels scrolling", cost: 900, emoji: "", category: "social" }
+    ],
+    online_shopping: [
+      { name: "Window Shopping Pass: 30 mins to browse and build wishlists", cost: 200, emoji: "", category: "shopping" },
+      { name: "Micro-Treat: Buy one small wishlist item (Under $15)", cost: 1000, emoji: "", category: "shopping" },
+      { name: "Treat Yo' Self: Buy that one big expensive item you've wanted", cost: 3000, emoji: "", category: "shopping" }
+    ],
+    napping: [
+      { name: "The Snooze Pass: Hit snooze once with zero guilt", cost: 150, emoji: "", category: "self_care" },
+      { name: "Sleep In Weekend: Set your alarm 2 hours later than usual", cost: 600, emoji: "", category: "self_care" },
+      { name: "The Bear Hibernation: Turn off all alarms and wake up naturally", cost: 1200, emoji: "", category: "self_care" }
+    ],
+    junk_food: [
+      { name: "One small sweet treat or candy bar", cost: 250, emoji: "", category: "food" },
+      { name: "Order out: Guilt-free fast food or takeout for dinner", cost: 800, emoji: "", category: "food" },
+      { name: "The Ultimate Cheat Meal: Pizza, dessert, and a sugary drink", cost: 1500, emoji: "", category: "food" }
+    ],
+    gaming: [
+      { name: "30 minutes of cozy/casual gaming", cost: 200, emoji: "", category: "gaming" },
+      { name: "Play with the squad: 2 hours of multiplayer with friends", cost: 700, emoji: "", category: "gaming" },
+      { name: "All-Nighter Pass: Unrestricted gaming session with zero chores", cost: 1800, emoji: "", category: "gaming" }
+    ],
+    coffee: [
+      { name: "The Afternoon Boost: Allow yourself a second cup of coffee today", cost: 150, emoji: "", category: "food" },
+      { name: "Cafe Upgrade: Buy a fancy, expensive drink from a local cafe", cost: 400, emoji: "", category: "food" },
+      { name: "Premium Beans: Order a bag of high-end specialty coffee beans", cost: 1000, emoji: "", category: "food" }
+    ],
+    procrastination: [
+      { name: "15-Minute 'Do Absolutely Nothing' Break", cost: 150, emoji: "", category: "self_care" },
+      { name: "Skip a Daily: Get a free pass to skip one minor habit today", cost: 500, emoji: "", category: "self_care" },
+      { name: "The Blank Canvas: A full afternoon with zero productivity allowed", cost: 1500, emoji: "", category: "self_care" }
     ]
   },
   sideQuests: {
