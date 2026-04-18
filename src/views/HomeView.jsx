@@ -5,19 +5,19 @@ import StatusBar from '../components/StatusBar'
 import TaskRow from '../components/TaskRow'
 import ConfettiOverlay from '../components/ConfettiOverlay'
 import db, { getProfile, updateProfile, addPoints } from '../services/db'
-import { classifyTask, generateCompletionQuip, validateTask } from '../services/AIManager'
 import HapticManager from '../services/HapticManager'
-import { calculatePoints, nextStreak, missPenalty, INFLATION_THRESHOLD } from '../viewmodels/economyViewModel'
-import { createTask, TASK_RANKS, TASK_CATEGORIES, RANK_POINTS } from '../models/TaskItem'
+import { calculatePoints, nextStreak, missPenalty } from '../viewmodels/economyViewModel'
+import { createTask, TASK_RANKS } from '../models/TaskItem'
 import { todayStr } from '../services/db'
+import { getRankFromPoints, getCompletionQuip } from '../services/QuestUtils'
 
 export default function HomeView({ profile, onPointsChange, theme }) {
   const [tasks, setTasks]           = useState([])
   const [loading, setLoading]       = useState(true)
   const [points, setPoints]         = useState(profile?.totalPoints ?? 0)
   const [showAddSheet, setAddSheet] = useState(false)
-  const [newTask, setNewTask]       = useState({ title: '', isRecurring: true, deadline: '' })
-  const [classifying, setClassifying] = useState(false)
+  const [newTask, setNewTask]       = useState({ title: '', isRecurring: true, deadline: '', points: 150 })
+  const [isSaving, setIsSaving]     = useState(false)
   const [quip, setQuip]             = useState(null)
   const confettiRef                 = useRef(null)
   
@@ -124,15 +124,12 @@ export default function HomeView({ profile, onPointsChange, theme }) {
 
   const handleAddTask = useCallback(async () => {
     if (!newTask.title.trim()) return
+    if (newTask.title.length < 3) {
+      alert("Quest title is too short. Try something more actionable!")
+      return
+    }
     setClassifying(true)
     try {
-      const isValid = await validateTask(newTask.title.trim())
-      if (!isValid) {
-        setClassifying(false)
-        alert("Quest Brain thinks this quest is nonsensical. Try something more actionable!")
-        return
-      }
-
       const classification = await classifyTask(newTask.title)
       const task = createTask({
         title: newTask.title.trim(),
@@ -150,7 +147,7 @@ export default function HomeView({ profile, onPointsChange, theme }) {
       loadTasks()
     } catch (_err) {
       setClassifying(false)
-      alert("Quest Brain is busy. Try again!")
+      alert("Unable to save quest. Try again!")
     }
   }, [newTask, loadTasks])
 
@@ -203,10 +200,11 @@ export default function HomeView({ profile, onPointsChange, theme }) {
 
       {quip && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 3000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', pointerEvents: 'none' }}>
-          <GlassCard variant="heavy" style={{ padding: '24px', textAlign: 'center' }}>
-            <div style={{ fontSize: '36px' }}>🏆</div>
-            <div style={{ fontWeight: 500, color: 'var(--color-charcoal)' }}>{quip.text}</div>
-          </GlassCard>
+          <div className="quip-box">
+            <div className="body" style={{ fontStyle: 'italic', color: 'var(--color-charcoal-mid)', fontWeight: 500 }}>
+              "{quip}"
+            </div>
+          </div>
         </div>
       )}
 
@@ -270,7 +268,7 @@ export default function HomeView({ profile, onPointsChange, theme }) {
         )}
 
         <button className="btn-primary" onClick={handleAddTask} disabled={classifying || !newTask.title.trim()}>
-          {classifying ? '🤖 Quest Brain thinking...' : 'Confirm Quest'}
+          {classifying ? 'Saving quest...' : 'Confirm Quest'}
         </button>
       </div>
     </div>

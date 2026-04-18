@@ -107,9 +107,9 @@ export function inflatedCost(baseCost, isInflated) {
  * Streak tier label
  */
 export function streakTier(streak) {
-  if (streak >= 30) return { label: 'Legendary', emoji: '👑', color: '#D4A847' }
-  if (streak >= 14) return { label: 'On Fire',   emoji: '🔥', color: '#C45A5A' }
-  if (streak >= 7)  return { label: 'Heated',    emoji: '⚡', color: '#C4714A' }
-  if (streak >= 3)  return { label: 'Warming Up',emoji: '🌱', color: '#87A878' }
+  if (streak >= 30) return { label: 'Legendary', color: '#D4A847' }
+  if (streak >= 14) return { label: 'On Fire',   color: '#C45A5A' }
+  if (streak >= 7)  return { label: 'Heated',    color: '#C4714A' }
+  if (streak >= 3)  return { label: 'Warming Up',color: '#87A878' }
   return null
 }

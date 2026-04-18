@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react'
 import AnimatedMeshBackground from '../components/AnimatedMeshBackground'
 import GlassCard from '../components/GlassCard'
 import { redeemReward, isInflationActive } from '../viewmodels/storeViewModel'
-import { suggestRewardPoints } from '../services/AIManager'
 import db from '../services/db'
 import HapticManager from '../services/HapticManager'
 
@@ -15,9 +14,10 @@ export default function StoreView({ points, onPointsChange }) {
   const [currentPoints, setCurrentPoints] = useState(points)
   
   const [showAddSheet, setAddSheet]       = useState(false)
-  const [newReward, setNewReward]         = useState({ name: '', emoji: '🎁' })
-  const [suggesting, setSuggesting]       = useState(false)
+  const [customName, setCustomName]       = useState('')
   const [loading, setLoading]             = useState(true)
+  const [suggesting, setSuggesting]       = useState(false)
+  const [calculating, setCalculating]     = useState(false)
 
   const loadAll = useCallback(async () => {
     try {
@@ -65,27 +65,33 @@ export default function StoreView({ points, onPointsChange }) {
   }, [loadAll, onPointsChange])
 
   const handleAddReward = async () => {
-    if (!newReward.name.trim()) return
+    if (!customName.trim()) return
     setSuggesting(true)
+    setCalculating(true)
     try {
-      const suggestedCost = await suggestRewardPoints(newReward.name)
+      // Manual point entry logic can be added here, but for now we'll use a default or prompt
+      // For simplicity, we'll prompt for points or use 500
+      const pointStr = prompt("Enter point cost for this reward:", "500")
+      const cost = parseInt(pointStr) || 500
+      
       const reward = {
-        name: newReward.name.trim(),
-        cost: suggestedCost,
-        baseCost: suggestedCost,
-        emoji: newReward.emoji,
+        name: customName.trim(),
+        cost: cost,
+        baseCost: cost,
+        emoji: "",
         isCustom: true,
         createdAt: new Date().toISOString()
       }
       await db.rewards.add(reward)
       setAddSheet(false)
-      setNewReward({ name: '', emoji: '🎁' })
+      setCustomName('')
       loadAll()
       HapticManager.medium()
-    } catch (_e) {
-      alert("Quest Brain failed to suggest points.")
+    } catch (err) {
+      alert("Unable to save reward.")
     } finally {
       setSuggesting(false)
+      setCalculating(false)
     }
   }
 
@@ -99,7 +105,6 @@ export default function StoreView({ points, onPointsChange }) {
       <GlassCard style={{ padding: '16px', marginBottom: '12px', opacity: canAfford ? 1 : 0.6, animation: isWiggle ? 'wiggle 0.5s' : '' }}>
         <div className="flex-between">
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-            <span style={{ fontSize: '28px' }}>{reward.emoji}</span>
             <div>
               <div style={{ fontWeight: 600 }}>{reward.name}</div>
               <div className="caption" style={{ color: 'var(--color-gold)' }}>{cost} points</div>
@@ -111,7 +116,7 @@ export default function StoreView({ points, onPointsChange }) {
             disabled={!canAfford}
             style={{ width: 'auto', padding: '8px 16px', fontSize: '14px', background: isSuccess ? 'var(--color-sage)' : '' }}
           >
-            {isSuccess ? 'Redeemed ✓' : canAfford ? 'Redeem' : '🔒'}
+            {isSuccess ? 'Redeemed' : canAfford ? 'Redeem' : 'Locked'}
           </button>
         </div>
       </GlassCard>
@@ -131,14 +136,14 @@ export default function StoreView({ points, onPointsChange }) {
         {inflated && (
           <GlassCard style={{ padding: '12px', marginBottom: '16px', borderLeft: '4px solid var(--color-gold)' }}>
             <div className="flex-between">
-              <div>📈 <b>Inflation Active</b></div>
+              <div><b>Inflation Active</b></div>
               <div className="caption">Spend to stabilize!</div>
             </div>
           </GlassCard>
         )}
 
         <div className="section-header"><span className="label">Daily Specials</span></div>
-        {aiSpecials.length === 0 && <div className="caption" style={{ textAlign: 'center', padding: '20px' }}>Updating daily specials...</div>}
+        {aiSpecials.length === 0 && !loading && <div className="caption" style={{ textAlign: 'center', padding: '20px' }}>No specials available.</div>}
         {aiSpecials.map(r => <RewardCard key={r.id} reward={r} />)}
 
         <div style={{ marginTop: '24px' }}>
@@ -154,25 +159,19 @@ export default function StoreView({ points, onPointsChange }) {
       <div className={`bottom-sheet ${showAddSheet ? 'open' : ''}`}>
         <div className="sheet-handle" />
         <div className="display-md">Add Reward</div>
-        <div className="caption" style={{ marginBottom: '16px' }}>What treat would you like to earn?</div>
-        
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-          <input 
-            className="input-field" 
-            placeholder="e.g. 1 hour of gaming, Chocolate" 
-            value={newReward.name} 
-            onChange={e => setNewReward(p => ({...p, name: e.target.value}))}
-          />
-          <input 
-            className="input-field" 
-            style={{ width: '60px', textAlign: 'center' }} 
-            value={newReward.emoji} 
-            onChange={e => setNewReward(p => ({...p, emoji: e.target.value}))}
-          />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
+          <div style={{ flex: 1 }}>
+            <div className="caption" style={{ marginBottom: '6px' }}>What’s the prize?</div>
+            <input
+              className="input-field"
+              placeholder="E.g., Sushi Night, 1hr Gaming"
+              value={customName}
+              onChange={e => setCustomName(e.target.value)}
+            />
+          </div>
         </div>
-
-        <button className="btn-primary" onClick={handleAddReward} disabled={suggesting || !newReward.name.trim()}>
-          {suggesting ? '🤖 AI assigning cost...' : 'Add to Store'}
+        <button className="btn-primary" style={{ marginTop: '20px' }} onClick={handleAddReward} disabled={suggesting || !customName.trim()}>
+          {calculating ? 'Saving...' : 'Add Reward'}
         </button>
       </div>
     </div>

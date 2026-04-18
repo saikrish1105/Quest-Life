@@ -10,17 +10,13 @@ export const MAIN_QUESTS = [
 
 export const SIDE_QUESTS = [
   { id: 'gym',        label: 'Gym / Fitness' },
-  { id: 'music',      label: 'Musician' },
-  { id: 'reading',    label: 'Reading' },
-  { id: 'art',        label: 'Art / Design' },
-  { id: 'gaming',     label: 'Gaming' },
-  { id: 'cooking',    label: 'Cooking' },
-  { id: 'writing',    label: 'Writing' },
+  { id: 'coding',     label: 'Coding' },
+  { id: 'music',      label: 'Guitar / Music' },
+  { id: 'education',  label: 'Education' },
+  { id: 'singing',    label: 'Singing' },
   { id: 'sports',     label: 'Sports' },
-  { id: 'travel',     label: 'Travel' },
-  { id: 'meditation', label: 'Meditation' },
-  { id: 'language',   label: 'Language Learning' },
-  { id: 'photography',label: 'Photography' },
+  { id: 'reading',    label: 'Reading' },
+  { id: 'gaming',     label: 'Gaming' },
 ]
 
 export const VICES = [

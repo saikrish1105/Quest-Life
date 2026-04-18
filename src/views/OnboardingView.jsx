@@ -6,7 +6,7 @@ import AnimatedMeshBackground from '../components/AnimatedMeshBackground'
 import HapticManager from '../services/HapticManager'
 import db, { updateProfile } from '../services/db'
 import { createTask, TASK_CATEGORIES, TASK_RANKS } from '../models/TaskItem'
-import { generateOnboardingStoreItems } from '../services/AIManager'
+import { STORE_DEFAULTS } from '../data/storeDefaults'
 
 const STEPS = ['mainQuest', 'customMainQuest', 'sideQuests', 'vices', 'difficulty']
 
@@ -195,23 +195,42 @@ export default function OnboardingView({ onComplete }) {
       await db.tasks.add(task)
     }
 
-    // Generate AI Store Items
+    // Seed Initial Rewards based on Vices and Side Quests
     try {
-      const sideQuestLabels = sideQuests.map(id => {
-        const sq = SIDE_QUESTS.find(x => x.id === id)
-        return sq ? sq.label : id
-      })
-      const onboardingRewards = await generateOnboardingStoreItems(sideQuestLabels, finalMainQuest)
-      if (onboardingRewards && onboardingRewards.length > 0) {
-        for (const r of onboardingRewards) {
-          await db.rewards.add({
-            ...r,
-            cost: r.cost || r.points || 300,
-            baseCost: r.cost || r.points || 300,
-            isFixed: true, 
-            createdAt: new Date().toISOString()
-          })
+      const initialRewards = [];
+      
+      // Pick 2 items from each vice
+      vices.slice(0, 3).forEach(viceId => {
+        if (STORE_DEFAULTS.vices[viceId]) {
+          initialRewards.push(...STORE_DEFAULTS.vices[viceId].slice(0, 2));
         }
+      });
+
+      // Pick 1 item from each side quest
+      sideQuests.slice(0, 3).forEach(sqId => {
+        const dataId = {
+          gym: 'Gym_Fitness',
+          coding: 'Coding',
+          music: 'Guitar',
+          education: 'Education',
+          singing: 'Singing',
+          sports: 'Sport',
+          reading: 'Reading',
+          gaming: 'Gaming'
+        }[sqId] || sqId;
+        if (STORE_DEFAULTS.sideQuests[dataId]) {
+          initialRewards.push(...STORE_DEFAULTS.sideQuests[dataId].slice(0, 1));
+        }
+      });
+
+      for (const r of initialRewards) {
+        await db.rewards.add({
+          ...r,
+          cost: r.cost || 300,
+          baseCost: r.cost || 300,
+          isFixed: true, 
+          createdAt: new Date().toISOString()
+        })
       }
     } catch (e) {
       console.error('Store generation failed', e)
@@ -282,7 +301,7 @@ export default function OnboardingView({ onComplete }) {
                 autoFocus
               />
               <button className="btn-primary" onClick={nextStep} disabled={!customMainValue.trim()}>
-                Continue →
+                Continue
               </button>
             </div>
           )}
@@ -333,7 +352,7 @@ export default function OnboardingView({ onComplete }) {
                 </button>
               </div>
               <button className="btn-primary" onClick={nextStep}>
-                Continue {sideQuests.length > 0 ? `(${sideQuests.length} selected)` : '→'}
+                Continue {sideQuests.length > 0 ? `(${sideQuests.length} selected)` : ''}
               </button>
             </>
           )}
@@ -383,7 +402,7 @@ export default function OnboardingView({ onComplete }) {
                 </button>
               </div>
               <button className="btn-primary" onClick={nextStep}>
-                Continue {vices.length > 0 ? `(${vices.length} selected)` : '→'}
+                Continue {vices.length > 0 ? `(${vices.length} selected)` : ''}
               </button>
             </>
           )}
@@ -428,7 +447,7 @@ export default function OnboardingView({ onComplete }) {
                 disabled={saving}
                 style={{ opacity: saving ? 0.7 : 1 }}
               >
-                {saving ? 'Starting your quest…' : '⚔️  Begin Quest Life'}
+                {saving ? 'Starting your quest' : 'Begin Quest Life'}
               </button>
             </div>
           )})()}

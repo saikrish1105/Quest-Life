@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import db, { addPoints, getProfile } from '../services/db'
-import { generateDungeon } from '../services/AIManager'
 import GlassCard from '../components/GlassCard'
 import AnimatedMeshBackground from '../components/AnimatedMeshBackground'
 import HapticManager from '../services/HapticManager'
+import { DUNGEON_TASKS } from '../data/dungeonTasks'
 
 const REFRESH_INTERVAL = 4 * 60 * 60 * 1000 // 4 hours
 
@@ -29,6 +29,72 @@ export default function DungeonView({ profile, theme, onPointsChange }) {
     const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
     const s = Math.floor((diff % (1000 * 60)) / 1000)
     return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+  }, [])
+
+  const generateLocalDungeon = useCallback((profile) => {
+    const sideQuests = profile?.sideQuests || ['Gym_Fitness']
+    const sqMap = {
+      gym: 'Gym_Fitness',
+      coding: 'Coding',
+      music: 'Guitar',
+      education: 'Education',
+      singing: 'Singing',
+      sports: 'Sport',
+      reading: 'Reading',
+      gaming: 'Gaming'
+    }
+    
+    const rawSqId = sideQuests[Math.floor(Math.random() * sideQuests.length)]
+    const categoryId = sqMap[rawSqId] || rawSqId
+    const categoryTasks = DUNGEON_TASKS[categoryId] || DUNGEON_TASKS['Gym_Fitness']
+    
+    const taskEntries = Object.entries(categoryTasks).map(([title, points]) => ({ title, points }))
+    const sortedTasks = [...taskEntries].sort((a, b) => b.points - a.points)
+    
+    const chosenTasks = []
+    const usedIndices = new Set()
+
+    for (let i = 0; i < 3; i++) {
+        let pool = []
+        const roll = Math.random() * 100
+        if (roll < 80) {
+            pool = sortedTasks.slice(0, 10)
+        } else {
+            pool = sortedTasks.slice(10)
+        }
+        
+        let attempts = 0
+        let picked = null
+        while (attempts < 20) {
+            const idx = Math.floor(Math.random() * pool.length)
+            picked = pool[idx]
+            if (!usedIndices.has(picked.title)) {
+                usedIndices.add(picked.title)
+                break
+            }
+            attempts++
+        }
+        chosenTasks.push({ ...picked, category: categoryId, completed: false })
+    }
+
+    const totalPoints = chosenTasks.reduce((sum, t) => sum + t.points, 0)
+    
+    let rank = 'E'
+    if (totalPoints >= 2500) rank = 'S'
+    else if (totalPoints >= 1800) rank = 'A'
+    else if (totalPoints >= 1200) rank = 'B'
+    else if (totalPoints >= 600) rank = 'C'
+    else if (totalPoints >= 300) rank = 'D'
+
+    return {
+      name: `${categoryId.replace('_', ' ')} Labyrinth`,
+      rank,
+      rewards: [
+        { name: 'Crystal Shard', points: Math.round(totalPoints * 0.1), emoji: '' },
+        { name: 'Gold Sack', points: Math.round(totalPoints * 0.15), emoji: '' }
+      ],
+      tasks: chosenTasks
+    }
   }, [])
 
   const loadOrCreateDungeon = useCallback(async () => {
@@ -202,7 +268,7 @@ export default function DungeonView({ profile, theme, onPointsChange }) {
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 color: 'white', fontSize: '14px'
               }}>
-                {task.completed && '✓'}
+                {task.completed && 'X'}
               </div>
               <div style={{ flex: 1, textDecoration: task.completed ? 'line-through' : 'none', opacity: task.completed ? 0.6 : 1 }}>
                 {task.title}
@@ -241,7 +307,7 @@ export default function DungeonView({ profile, theme, onPointsChange }) {
             boxShadow: allTasksCompleted ? `0 4px 20px ${dungeon?.rank === 'S' ? '#fbbf24' : 'currentColor'}66` : 'none'
           }}
         >
-          {dungeon?.claimed ? 'Dungeon Cleared ✓' : allTasksCompleted ? 'Claim Dungeon Rewards' : 'Complete All Tasks to Clear'}
+          {dungeon?.claimed ? 'Dungeon Cleared' : allTasksCompleted ? 'Claim Dungeon Rewards' : 'Complete All Tasks to Clear'}
         </button>
 
         {!dungeon?.claimed && (
@@ -263,7 +329,7 @@ export default function DungeonView({ profile, theme, onPointsChange }) {
               fontSize: '13px'
             }}
           >
-            🌀 Reroll Surprise (Abandon Current)
+            Reroll Surprise (Abandon Current)
           </button>
         )}
 

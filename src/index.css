@@ -48,21 +48,21 @@
 
 /* ── Light Theme (Apple Wellbeing) ────────────────────────── */
 [data-theme='light'] {
-  --bg-main: var(--color-sand);
+  --bg-main: #f7fee7; /* Softest warm green */
   --text-main: var(--color-charcoal);
   --text-dim: var(--color-charcoal-soft);
   --accent-main: var(--color-terracotta);
   --accent-secondary: var(--color-sage);
   
-  --glass-bg: rgba(255, 255, 255, 0.18);
-  --glass-border: rgba(255, 255, 255, 0.4);
+  --glass-bg: rgba(255, 255, 255, 0.45);
+  --glass-border: rgba(255, 255, 255, 0.6);
   --glass-blur: blur(24px);
-  --card-shadow: 0 10px 40px rgba(60, 40, 20, 0.08);
+  --card-shadow: 0 10px 40px rgba(100, 120, 50, 0.08);
 
-  --blob-1: #F0C4A8;
-  --blob-2: #D98A63;
-  --blob-3: #A8C49A;
-  --blob-4: #F5ECD7;
+  --blob-1: #ecfccb; /* Warm Lime 100 */
+  --blob-2: #dcfce7; /* Warm Green 100 */
+  --blob-3: #fef08a; /* Soft Yellow for warmth */
+  --blob-4: #f7fee7;
 
   /* Rank Gradients */
   --rank-e: linear-gradient(135deg, #e0f2fe, #bae6fd);
@@ -122,8 +122,8 @@ html {
 
 body {
   font-family: var(--font-body);
-  background: var(--color-sand);
-  color: var(--color-charcoal);
+  background: var(--bg-main);
+  color: var(--text-main);
   line-height: 1.5;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;

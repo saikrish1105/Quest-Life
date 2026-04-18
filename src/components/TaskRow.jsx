@@ -115,7 +115,7 @@ export default function TaskRow({ task, onComplete, onDelete, onAbandon, pointsE
             className="task-row-swipe-reveal right"
             style={{ opacity: swipeProgress }}
           >
-            <span style={{ fontSize: '22px' }}>✓</span>
+            <span style={{ fontSize: '18px', fontWeight: 800 }}>DONE</span>
           </div>
         )}
         {isDragging && !isRightSwipe && offsetX < -30 && (
@@ -123,7 +123,7 @@ export default function TaskRow({ task, onComplete, onDelete, onAbandon, pointsE
             className="task-row-swipe-reveal left"
             style={{ opacity: swipeProgress }}
           >
-            <span style={{ fontSize: '18px' }}>🗑</span>
+            <span style={{ fontSize: '16px', fontWeight: 800 }}>DEL</span>
           </div>
         )}
 
@@ -175,12 +175,12 @@ export default function TaskRow({ task, onComplete, onDelete, onAbandon, pointsE
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '5px' }}>
                 {task.streak > 0 && (
                   <span style={{ fontSize: '12px', color: tier?.color ?? 'var(--color-charcoal-soft)', fontWeight: 600 }}>
-                    {tier?.emoji ?? '🔗'} {task.streak}d streak
+                    STREAK: {task.streak}d
                   </span>
                 )}
                 {task.missPenaltyActive && (
                   <span className="pill pill-red" style={{ fontSize: '10px', padding: '2px 8px' }}>
-                    ⚠ Penalty
+                    Penalty
                   </span>
                 )}
                 {task.deadline && (
@@ -294,9 +294,9 @@ export default function TaskRow({ task, onComplete, onDelete, onAbandon, pointsE
             <div className="sheet-handle" />
             <p style={{ fontWeight: 700, fontSize: '16px', marginBottom: '20px' }}>{task.title}</p>
             {[
-              { label: '✓  Complete now', action: () => { setShowMenu(false); triggerComplete() }, color: 'var(--color-sage)' },
-              { label: '🏳  Abandon task', action: () => { setShowMenu(false); onAbandon(task) }, color: 'var(--color-charcoal-mid)' },
-              { label: '🗑  Delete', action: () => { setShowMenu(false); onDelete(task) }, color: 'var(--color-miss-red)' },
+              { label: 'Complete now', action: () => { setShowMenu(false); triggerComplete() }, color: 'var(--color-sage)' },
+              { label: 'Abandon task', action: () => { setShowMenu(false); onAbandon(task) }, color: 'var(--color-charcoal-mid)' },
+              { label: 'Delete', action: () => { setShowMenu(false); onDelete(task) }, color: 'var(--color-miss-red)' },
             ].map(item => (
               <button
                 key={item.label}
