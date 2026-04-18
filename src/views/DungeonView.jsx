@@ -32,6 +32,7 @@ export default function DungeonView({ profile, theme, onPointsChange }) {
   }, [])
 
   const loadOrCreateDungeon = useCallback(async () => {
+    if (!profile) return
     setLoading(true)
     try {
       const active = await db.dungeons.orderBy('expiresAt').last()
@@ -109,7 +110,9 @@ export default function DungeonView({ profile, theme, onPointsChange }) {
       
       const updatedProfile = await getProfile()
       setDungeon({ ...dungeon, claimed: true, status: 'completed' })
-      onPointsChange?.(updatedProfile.totalPoints)
+      if (updatedProfile) {
+        onPointsChange?.(updatedProfile.totalPoints)
+      }
       HapticManager.celebration()
     } catch (error) {
       console.error('Claim rewards failed', error)

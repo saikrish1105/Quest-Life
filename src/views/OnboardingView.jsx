@@ -6,6 +6,7 @@ import AnimatedMeshBackground from '../components/AnimatedMeshBackground'
 import HapticManager from '../services/HapticManager'
 import db, { updateProfile } from '../services/db'
 import { createTask, TASK_CATEGORIES, TASK_RANKS } from '../models/TaskItem'
+import { generateOnboardingStoreItems } from '../services/AIManager'
 
 const STEPS = ['mainQuest', 'customMainQuest', 'sideQuests', 'vices', 'difficulty']
 
@@ -196,7 +197,6 @@ export default function OnboardingView({ onComplete }) {
 
     // Generate AI Store Items
     try {
-      const { generateOnboardingStoreItems } = await import('../services/AIManager')
       const sideQuestLabels = sideQuests.map(id => {
         const sq = SIDE_QUESTS.find(x => x.id === id)
         return sq ? sq.label : id

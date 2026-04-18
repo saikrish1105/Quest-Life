@@ -47,7 +47,9 @@ export default function ProfileView({ profile, theme, onSetTheme, onProfileUpdat
     setSaving(true)
     try {
       await updateProfile({ mainQuest, sideQuests })
-      onProfileUpdate?.({ ...profile, mainQuest, sideQuests })
+      if (profile) {
+        onProfileUpdate?.({ ...profile, mainQuest, sideQuests })
+      }
       HapticManager.celebration()
       setSaved(true)
       setTimeout(() => setSaved(false), 2500)

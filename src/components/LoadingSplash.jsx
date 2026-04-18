@@ -1,36 +1,29 @@
-import React, { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
+import { onLoadProgress, loadModel } from '../services/AIManager'
 import AnimatedMeshBackground from './AnimatedMeshBackground'
 
-/**
- * LoadingSplash — shown on first launch while Llama 3.2 1B downloads via WebLLM.
- * Subscribes to AIManager progress events.
- * onDone() is called once model is ready OR after timeout.
- */
 export default function LoadingSplash({ onDone }) {
   const [progress, setProgress] = useState(0)
   const [message, setMessage]   = useState('Initializing Quest Brain…')
   const [phase, setPhase]       = useState('loading') // loading | ready
 
   useEffect(() => {
-    // Import AIManager and subscribe
-    import('../services/AIManager').then(({ onLoadProgress, loadModel }) => {
-      const unsub = onLoadProgress(({ status, progress: pct, message: msg }) => {
-        setProgress(pct ?? 0)
-        setMessage(msg)
-        if (status === 'ready') {
-          setPhase('ready')
-          setTimeout(onDone, 1200)
-        }
-        if (status === 'error') {
-          setPhase('ready')
-          setMessage('⚠️ Quest Brain failed to load. Check your connection and refresh.')
-          setTimeout(onDone, 2000)
-        }
-      })
-
-      loadModel()
-      return unsub
+    const unsub = onLoadProgress(({ status, progress: pct, message: msg }) => {
+      setProgress(pct ?? 0)
+      setMessage(msg)
+      if (status === 'ready') {
+        setPhase('ready')
+        setTimeout(onDone, 1200)
+      }
+      if (status === 'error') {
+        setPhase('ready')
+        setMessage('⚠️ Quest Brain failed to load. Check your connection and refresh.')
+        setTimeout(onDone, 2000)
+      }
     })
+
+    loadModel()
+    return unsub
 
     // Failsafe: if nothing happens in 30s, show timeout warning
     const failsafe = setTimeout(() => {

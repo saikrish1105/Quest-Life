@@ -9,7 +9,7 @@ import ProfileView from './views/ProfileView'
 import HapticManager from './services/HapticManager'
 import './index.css'
 
-const TABS = ['home', 'store']
+const TABS = ['home', 'dungeon', 'store', 'profile']
 
 export default function App() {
   const [appState, setAppState] = useState('splash')  // splash | onboarding | app
