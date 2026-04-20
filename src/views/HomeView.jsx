@@ -130,10 +130,11 @@ export default function HomeView({ profile, onPointsChange, theme }) {
     }
     setIsSaving(true)
     try {
+      const points = parseInt(newTask.points) || 150
       const task = createTask({
         title: newTask.title.trim(),
-        rank: TASK_RANKS.D,
-        baseValue: parseInt(newTask.points) || 150,
+        rank: getRankFromPoints(points),
+        baseValue: points,
         isRecurring: newTask.isRecurring,
         category: TASK_CATEGORIES.OTHER,
         deadline: !newTask.isRecurring && newTask.deadline ? newTask.deadline : null,
